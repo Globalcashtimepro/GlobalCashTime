@@ -62,10 +62,6 @@
             <button onclick="openM('with')" style="flex:1; background:var(--red); color:#fff;">RETIRAR</button>
             <button onclick="logout()" style="flex:1; background:#333; color:#fff;">SALIR</button>
         </div>
-        <div id="admin-panel" style="display:none; margin-top:15px; border-top:1px solid #444; padding-top:10px;">
-            <span class="label-gold">ADMINISTRACIÓN</span>
-            <div id="pending-deps" style="margin-top:10px;"></div>
-        </div>
     </div>
     <div class="salas-grid" id="grid-salas"></div>
     <div class="section-box game-layout">
@@ -92,7 +88,6 @@
 <div id="modal" class="modal"><div id="modal-content" class="section-box" style="width:90%; max-width:380px;"></div></div>
 
 <script>
-// CONFIGURACIÓN OFICIAL
 const firebaseConfig = {
   apiKey: "AIzaSyCntjKiPwfoCq0MzHIkybX4VZuYE_ZCnOE",
   authDomain: "globalcash-6fbe8.firebaseapp.com",
@@ -110,7 +105,6 @@ let currentU = null, sSel = 0, ang = 0, mySelection = [];
 let salas = Array.from({length: 20}, (_, i) => ({ id: i+1, count: 0, sold: [], isSpinning: false, isWaiting: false, currentGiro: 0, endTime: 0, lastWinner: null }));
 const wheelNumbers = Array.from({length: 200}, (_, i) => i + 1).sort(() => Math.random() - 0.5);
 
-// ESCUCHA DE SESIÓN Y DATOS
 auth.onAuthStateChanged(user => {
     if (user) {
         db.ref('users/' + user.uid).on('value', snap => {
@@ -123,9 +117,15 @@ auth.onAuthStateChanged(user => {
     }
 });
 
-db.ref('salas').on('value', snap => { if(snap.val()) { salas = snap.val(); renderGrid(); renderNumbers(); } });
+db.ref('salas').on('value', snap => { 
+    if(snap.val()) { 
+        salas = snap.val(); 
+        renderGrid(); 
+        renderNumbers(); 
+    } 
+});
 
-window.onload = () => { createRain(); draw(); setInterval(logic, 30); };
+window.onload = () => { createRain(); draw(); setInterval(logic, 30); renderGrid(); renderNumbers(); };
 
 function logic() {
     const now = Date.now();
@@ -171,12 +171,9 @@ function draw() {
 function openM(t) {
     const c = document.getElementById('modal-content'); document.getElementById('modal').style.display='flex';
     if(t==='auth') {
-        c.innerHTML = `<h3>ACCESO</h3><input id="auth-e" placeholder="Correo"><div class="password-wrapper"><input id="auth-p" type="password" placeholder="Clave"><span class="eye-icon" onclick="togglePass('auth-p')">👁️</span></div>
-        <button onclick="login()" style="width:100%; margin-top:10px;">ENTRAR</button>
-        <div class="auth-links" onclick="openM('reg')">Crear cuenta nueva</div>`;
+        c.innerHTML = `<h3>ACCESO</h3><input id="auth-e" placeholder="Correo"><div class="password-wrapper"><input id="auth-p" type="password" placeholder="Clave"><span class="eye-icon" onclick="togglePass('auth-p')">👁️</span></div><button onclick="login()" style="width:100%; margin-top:10px;">ENTRAR</button><div class="auth-links" onclick="openM('reg')">Crear cuenta nueva</div>`;
     } else if(t==='reg') {
-        c.innerHTML = `<h3>REGISTRO</h3><input id="reg-u" placeholder="Nombre de Usuario"><input id="reg-e" placeholder="Correo"><input id="reg-p" type="password" placeholder="Clave"><button onclick="register()" style="width:100%; margin-top:10px; background:var(--green)">REGISTRAR</button>
-        <div class="auth-links" onclick="openM('auth')">Ya tengo cuenta</div>`;
+        c.innerHTML = `<h3>REGISTRO</h3><input id="reg-u" placeholder="Nombre de Usuario"><input id="reg-e" placeholder="Correo"><input id="reg-p" type="password" placeholder="Clave"><button onclick="register()" style="width:100%; margin-top:10px; background:var(--green)">REGISTRAR</button><div class="auth-links" onclick="openM('auth')">Ya tengo cuenta</div>`;
     }
     c.innerHTML += `<button onclick="closeM()" style="background:#444; margin-top:10px; width:100%;">CERRAR</button>`;
 }
@@ -198,14 +195,39 @@ function logout() { auth.signOut().then(() => location.reload()); }
 function showProfile() { document.getElementById('guest-btn').style.display='none'; document.getElementById('user-profile').style.display='block'; document.getElementById('prof-name').innerText = currentU.u; document.getElementById('prof-balance').innerText = `$${currentU.b.toFixed(2)}`; }
 function togglePass(id) { const x = document.getElementById(id); x.type = x.type === 'password' ? 'text' : 'password'; }
 function closeM() { document.getElementById('modal').style.display='none'; }
-function renderGrid() { const g = document.getElementById('grid-salas'); g.innerHTML = ""; salas.forEach((s, i) => { g.innerHTML += `<div class="sala-card ${sSel===i?'active':''}" onclick="sSel=${i};renderGrid();renderNumbers();"><b>SALA ${s.id}</b><div>${s.count}/200</div></div>`; }); }
-function renderNumbers() { const c = document.getElementById('num-selector'); c.innerHTML = ""; const s = salas[sSel]; let taken = s.sold.map(x => x.n); for(let n=1; n<=200; n++) { const isSold = taken.includes(n), isSel = mySelection.includes(n); c.innerHTML += `<button class="num-btn ${isSold?'taken':''} ${isSel?'selected':''}" onclick="${!isSold ? `toggleNum(${n})` : ''}">${n}</button>`; } document.getElementById('prog-txt').innerText = `${s.count} / 200 Vendidos`; }
+
+function renderGrid() { 
+    const g = document.getElementById('grid-salas'); 
+    g.innerHTML = ""; 
+    salas.forEach((s, i) => { 
+        g.innerHTML += `<div class="sala-card ${sSel===i?'active':''}" onclick="sSel=${i};renderGrid();renderNumbers();"><b>SALA ${s.id}</b><div>${s.count}/200</div></div>`; 
+    }); 
+}
+
+function renderNumbers() { 
+    const c = document.getElementById('num-selector'); 
+    c.innerHTML = ""; 
+    const s = salas[sSel]; 
+    let taken = (s.sold || []).map(x => x.n); 
+    for(let n=1; n<=200; n++) { 
+        const isSold = taken.includes(n), isSel = mySelection.includes(n); 
+        const btn = document.createElement('button');
+        btn.className = `num-btn ${isSold?'taken':''} ${isSel?'selected':''}`;
+        btn.innerText = n;
+        btn.onclick = () => { if(!isSold) toggleNum(n); };
+        c.appendChild(btn);
+    } 
+    document.getElementById('prog-txt').innerText = `${s.count} / 200 Vendidos`; 
+}
+
 function toggleNum(n) { if(mySelection.includes(n)) mySelection = mySelection.filter(x => x !== n); else mySelection.push(n); renderNumbers(); }
+
 function comprarSeleccion() { 
     if(!currentU) return openM('auth'); 
     let s = salas[sSel], cost = mySelection.length * 0.5; 
     if(currentU.b >= cost && cost > 0) {
         db.ref('users/' + currentU.uid).update({ b: currentU.b - cost });
+        if(!s.sold) s.sold = [];
         mySelection.forEach(n => s.sold.push({n, u: currentU.u}));
         s.count = s.sold.length;
         if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.endTime = Date.now() + 15000; }
@@ -213,6 +235,19 @@ function comprarSeleccion() {
         db.ref('salas').set(salas);
     } else { alert("Saldo insuficiente"); }
 }
+
+function rand(n) { 
+    let s = salas[sSel]; 
+    let avail = []; 
+    let taken = (s.sold || []).map(x => x.n);
+    for(let i=1; i<=200; i++) if(!taken.includes(i)) avail.push(i);
+    for(let i=0; i<n && avail.length>0; i++) {
+        let r = Math.floor(Math.random()*avail.length);
+        mySelection.push(avail.splice(r,1)[0]);
+    }
+    renderNumbers(); 
+}
+
 function createRain() { const c = document.getElementById('rain-container'); for(let i=0; i<60; i++) { let p = document.createElement('div'); p.className = 'particle'; p.style.left = Math.random()*100+'vw'; p.style.animationDuration = (Math.random()*3+2)+'s'; c.appendChild(p); } }
 </script>
 </body>
