@@ -11,11 +11,14 @@
         :root { --primary: #ffea00; --primary-dark: #ccac00; --bg: #050505; --card: #121212; --text: #ffffff; --green: #00ff66; --red: #ff3333; --link: #88ccff; }
         body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; overflow-x: hidden; position: relative; min-height: 100vh; }
         body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle at 50% 50%, #1a1500 0%, #050505 100%); z-index: -2; }
+        
         .bg-glow { position: fixed; width: 100vw; height: 100vh; z-index: -1; top: 0; left: 0; pointer-events: none; }
         .particle { position: absolute; width: 2px; height: 15px; background: var(--primary); opacity: 0.2; animation: rain linear infinite; }
         @keyframes rain { 0% { transform: translateY(-100px); } 100% { transform: translateY(110vh); } }
+
         header { width: 100%; padding: 20px 0; background: rgba(18, 18, 18, 0.9); border-bottom: 2px solid var(--primary); text-align: center; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); }
         .main-container { width: 95%; max-width: 1200px; padding: 10px; box-sizing: border-box; flex-grow: 1; }
+        
         button { background: linear-gradient(145deg, #fff200, #b8860b); color: #000; border: 1px solid #fff; padding: 12px; font-weight: 900; cursor: pointer; border-radius: 8px; font-size: 12px; text-transform: uppercase; transition: 0.3s; box-shadow: 0 0 10px rgba(255, 234, 0, 0.2); }
         .profile-card { display: none; background: linear-gradient(145deg, #1a1a1a, #0a0800); border: 2px solid var(--primary); padding: 15px; border-radius: 15px; margin: 0 auto 20px; width: 100%; max-width: 480px; box-sizing: border-box; }
         .label-gold { color: var(--primary); font-size: 10px; font-weight: bold; text-transform: uppercase; }
@@ -23,29 +26,38 @@
         .salas-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 20px; }
         .sala-card { background: #0a0a0a; border: 1px solid #333; border-radius: 12px; padding: 8px; text-align: center; cursor: pointer; transition: 0.3s; }
         .sala-card.active { border-color: var(--primary); background: #2a2200; box-shadow: 0 0 15px rgba(255, 234, 0, 0.4); }
+
         .game-layout { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; align-items: flex-start; }
         .left-col { width: 320px; flex-shrink: 0; }
         .right-col { flex: 1; min-width: 300px; }
+
         #canvas-container { position: relative; margin: 0 auto; width: 300px; height: 300px; }
         #pointer { position: absolute; right: -5px; top: 50%; transform: translateY(-50%); width: 30px; height: 20px; background: #fff; clip-path: polygon(100% 0%, 0% 50%, 100% 100%); z-index: 10; }
         canvas { width: 300px !important; height: 300px !important; border-radius: 50%; border: 4px solid #222; }
+        
         .numbers-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; background: #000; padding: 10px; border-radius: 8px; max-height: 400px; overflow-y: auto; }
         .num-btn { padding: 8px 0; font-size: 10px; border: 1px solid #333; background: #111; color: #fff; cursor: pointer; border-radius: 4px; }
         .num-btn.selected { background: var(--green); color: #000; font-weight: bold; }
         .num-btn.taken { background: var(--red) !important; color: #fff !important; cursor: not-allowed; pointer-events: none; }
+        
         .btn-rand { background: #222; color: #fff; border: 1px solid #444; padding: 8px; font-size: 10px; flex: 1; text-transform: none; }
         .btn-rand b { color: var(--primary); display: block; font-size: 11px; }
+
         .modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:1000; justify-content:center; align-items:center; }
         input, select { width: 90%; padding: 14px; margin: 10px 0; background: #000; color: #fff; border: 1px solid #444; border-radius: 8px; text-align: center; }
         .password-wrapper { position: relative; width: 90%; margin: 0 auto; }
         .eye-icon { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #aaa; }
         .auth-links { margin-top: 15px; font-size: 12px; color: var(--link); cursor: pointer; text-decoration: underline; }
+
         .wallet-box { background: #111; border: 1px dashed var(--primary); padding: 10px; border-radius: 8px; font-size: 11px; word-break: break-all; margin: 10px 0; cursor: pointer; }
         .upload-box { border: 2px dashed #444; padding: 10px; margin: 10px 0; border-radius: 8px; cursor: pointer; background: #0a0a0a; font-size: 11px; }
         #preview-img { width: 100%; max-height: 100px; object-fit: contain; margin-top: 10px; display: none; }
+
         .admin-notif { background: #1a1a1a; padding: 10px; margin-bottom: 10px; border-radius: 5px; font-size: 11px; border-left: 3px solid var(--primary); text-align: left; }
+
         footer { width: 100%; padding: 30px 0; background: #0a0a0a; border-top: 1px solid #222; text-align: center; color: #555; font-size: 12px; }
         .f-links { margin-top: 10px; display: flex; justify-content: center; gap: 15px; color: var(--link); cursor: pointer; }
+        
         @media (max-width: 768px) { .salas-grid { grid-template-columns: repeat(2, 1fr); } .left-col, .right-col { width: 100%; } }
     </style>
 </head>
@@ -126,20 +138,11 @@
 <div id="modal" class="modal"><div id="modal-content" class="section-box" style="width:90%; max-width:380px;"></div></div>
 
 <script>
-// --- CONFIGURACIÓN FIREBASE ---
-const firebaseConfig = {
-  apiKey: "AIzaSyCntjKiPwfoCq0MzHIkybX4VZuYE_ZCnOE",
-  authDomain: "globalcash-6fbe8.firebaseapp.com",
-  databaseURL: "https://globalcash-6fbe8-default-rtdb.firebaseio.com",
-  projectId: "globalcash-6fbe8",
-  storageBucket: "globalcash-6fbe8.firebasestorage.app",
-  messagingSenderId: "476476155798",
-  appId: "1:476476155798:web:947a0e0140acfca78d5fb7"
-};
+// FIREBASE INICIALIZACIÓN
+const firebaseConfig = { apiKey: "AIzaSyCntjKiPwfoCq0MzHIkybX4VZuYE_ZCnOE", authDomain: "globalcash-6fbe8.firebaseapp.com", databaseURL: "https://globalcash-6fbe8-default-rtdb.firebaseio.com", projectId: "globalcash-6fbe8", storageBucket: "globalcash-6fbe8.firebasestorage.app", messagingSenderId: "476476155798", appId: "1:476476155798:web:947a0e0140acfca78d5fb7" };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// --- VARIABLES GLOBALES ---
 let users = [];
 let currentU = null, ang = 0, sSel = parseInt(localStorage.getItem('GCT_S_SEL')) || 0, mySelection = [], tempImg = "";
 let pendingDeps = [];
@@ -153,44 +156,26 @@ let salas = Array.from({length: 20}, (_, i) => ({
 const wheelNumbers = Array.from({length: 200}, (_, i) => i + 1).sort(() => Math.random() - 0.5);
 const PREMIOS = { 1: 5, 2: 15, 3: 50 };
 
-// --- INICIALIZACIÓN ---
 window.onload = () => {
     createRain();
-    
-    // Escuchar datos de Firebase en tiempo real
-    db.ref('GCT_DATABASE').on('value', (snapshot) => {
-        const data = snapshot.val();
-        if(data) {
-            users = data.users || [];
-            salas = data.salas || salas;
-            historial = data.historial || [];
-            pendingDeps = data.pendingDeps || [];
-            pendingWiths = data.pendingWiths || [];
-            passReqs = data.passReqs || [];
-            
-            // Re-vincular sesión actual
-            const saved = localStorage.getItem('GCT_SESSION');
-            if(saved) {
-                if(saved === "ADMIN_GLOBAL") { 
-                    currentU = {u:"ADMIN_GLOBAL", b:0}; 
-                    document.getElementById('admin-panel').style.display='block'; 
-                    renderAdmin(); 
-                } else { 
-                    currentU = users.find(x => x.u === saved); 
-                }
-                if(currentU) showProfile();
-            }
-            renderGrid();
-            renderNumbers();
-            updateUI();
-        } else {
-            // Si la base de datos está vacía, inicializar
-            save();
+    db.ref('GCT_MASTER').on('value', snap => {
+        const d = snap.val();
+        if(d) {
+            users = d.users || [];
+            salas = d.salas || salas;
+            pendingDeps = d.pendingDeps || [];
+            pendingWiths = d.pendingWiths || [];
+            passReqs = d.passReqs || [];
+            historial = d.historial || [];
         }
+        const saved = localStorage.getItem('GCT_SESSION');
+        if(saved) {
+            if(saved === "ADMIN_GLOBAL") { currentU = {u:"ADMIN_GLOBAL", b:0}; document.getElementById('admin-panel').style.display='block'; renderAdmin(); }
+            else { currentU = users.find(x => x.u === saved); }
+            if(currentU) showProfile();
+        }
+        setSala(sSel); renderGrid(); renderNumbers(); draw();
     });
-
-    setSala(sSel); 
-    draw(); 
     setInterval(logic, 30);
 };
 
@@ -212,7 +197,7 @@ function logic() {
     salas.forEach((s, i) => {
         if(s.isSpinning) {
             let timeLeft = s.endTime - now;
-            let totalSpinTime = 60000;
+            let totalSpinTime = 15000;
             let elapsed = totalSpinTime - timeLeft;
             if(timeLeft <= 0) {
                 s.isSpinning = false; s.isWaiting = true; s.endTime = now + 5000;
@@ -233,8 +218,8 @@ function logic() {
                 change = true;
             } else if(i === sSel) {
                 let speed = 0.45; 
-                if (elapsed > 35000) { 
-                    let decelProgress = (elapsed - 35000) / 25000; 
+                if (elapsed > 10000) { 
+                    let decelProgress = (elapsed - 10000) / 5000; 
                     speed = Math.max(0.001, 0.45 * Math.pow(1 - decelProgress, 4)); 
                 }
                 ang += speed; draw(); 
@@ -243,7 +228,7 @@ function logic() {
         } else if(s.isWaiting) {
             if(now >= s.endTime) {
                 s.isWaiting = false;
-                if(s.currentGiro < 3) { s.currentGiro++; s.isSpinning = true; s.endTime = now + 60000; }
+                if(s.currentGiro < 3) { s.currentGiro++; s.isSpinning = true; s.endTime = now + 15000; }
                 else { 
                     setTimeout(() => { s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; save(); renderGrid(); renderNumbers(); }, 3000); 
                 }
@@ -284,7 +269,7 @@ function comprarSeleccion() {
         currentU.b -= cost; currentU.part = (currentU.part || 0) + mySelection.length;
         mySelection.forEach(num => s.sold.push({n: num, u: currentU.u}));
         s.count = s.sold.length; mySelection = []; 
-        if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.endTime = Date.now() + 60000; } 
+        if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.endTime = Date.now() + 15000; } 
         save(); renderGrid(); renderNumbers(); updateUI(); 
     } 
 }
@@ -321,7 +306,7 @@ function requestPass() {
 
 function togglePass(id) { const el = document.getElementById(id); el.type = el.type === 'password' ? 'text' : 'password'; }
 function renderGrid() { const grid = document.getElementById('grid-salas'); grid.innerHTML = ""; salas.forEach((s, i) => { grid.innerHTML += `<div class="sala-card ${sSel===i?'active':''}" onclick="setSala(${i})"><b>SALA ${s.id}</b><div>${s.count}/200</div></div>`; }); }
-function renderNumbers() { const cont = document.getElementById('num-selector'); if(!cont) return; cont.innerHTML = ""; const s = salas[sSel]; let takenNums = s.sold.map(x => x.n); for(let n=1; n<=200; n++) { const isSold = takenNums.includes(n), isSel = mySelection.includes(n); cont.innerHTML += `<button class="num-btn ${isSold?'taken':''} ${isSel?'selected':''}" onclick="${!isSold ? `toggleNum(${n})` : ''}">${n}</button>`; } document.getElementById('prog-txt').innerText = `${s.count} / 200 Vendidos`; }
+function renderNumbers() { const cont = document.getElementById('num-selector'); cont.innerHTML = ""; const s = salas[sSel]; let takenNums = s.sold.map(x => x.n); for(let n=1; n<=200; n++) { const isSold = takenNums.includes(n), isSel = mySelection.includes(n); cont.innerHTML += `<button class="num-btn ${isSold?'taken':''} ${isSel?'selected':''}" onclick="${!isSold ? `toggleNum(${n})` : ''}">${n}</button>`; } document.getElementById('prog-txt').innerText = `${s.count} / 200 Vendidos`; }
 function toggleNum(n) { if(mySelection.includes(n)) mySelection = mySelection.filter(x => x !== n); else mySelection.push(n); renderNumbers(); }
 
 function updateStatus() { 
@@ -331,18 +316,7 @@ function updateStatus() {
     else st.innerText = ""; 
 }
 
-// --- FUNCIÓN GUARDAR (AHORA FIREBASE) ---
-function save() { 
-    db.ref('GCT_DATABASE').set({
-        users: users,
-        salas: salas,
-        historial: historial,
-        pendingDeps: pendingDeps,
-        pendingWiths: pendingWiths,
-        passReqs: passReqs
-    });
-}
-
+function save() { db.ref('GCT_MASTER').set({ users, salas, pendingDeps, pendingWiths, passReqs, historial }); }
 function showProfile() { document.getElementById('guest-btn').style.display='none'; document.getElementById('user-profile').style.display='block'; document.getElementById('prof-name').innerText = currentU.u; updateUI(); }
 function updateUI() { if(currentU && currentU.u !== "ADMIN_GLOBAL") document.getElementById('prof-balance').innerText = `$${currentU.b.toFixed(2)}`; }
 function logout() { localStorage.removeItem('GCT_SESSION'); location.reload(); }
@@ -352,7 +326,6 @@ function register() {
     let u = document.getElementById('re-u').value.trim().toLowerCase(), p = document.getElementById('re-p').value; 
     if(!u.endsWith("@gmail.com")) return alert("Solo se permiten correos @gmail.com");
     if(p.length < 8) return alert("La contraseña debe tener al menos 8 dígitos.");
-    if(users.find(x => x.u === u)) return alert("El usuario ya existe.");
     if(u && p) { users.push({u, p, b: 0, part: 0}); save(); alert("Registrado"); openM('auth'); } 
 }
 
