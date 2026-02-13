@@ -40,7 +40,6 @@
         input, select { width: 90%; padding: 14px; margin: 10px 0; background: #000; color: #fff; border: 1px solid #444; border-radius: 8px; text-align: center; }
         .password-wrapper { position: relative; width: 90%; margin: 0 auto; }
         .eye-icon { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #aaa; }
-        .auth-links { margin-top: 15px; font-size: 12px; color: var(--link); cursor: pointer; text-decoration: underline; }
         footer { width: 100%; padding: 30px 0; background: #0a0a0a; border-top: 1px solid #222; text-align: center; color: #555; font-size: 12px; }
         @media (max-width: 768px) { .salas-grid { grid-template-columns: repeat(2, 1fr); } .left-col, .right-col { width: 100%; } }
     </style>
@@ -171,9 +170,9 @@ function draw() {
 function openM(t) {
     const c = document.getElementById('modal-content'); document.getElementById('modal').style.display='flex';
     if(t==='auth') {
-        c.innerHTML = `<h3>ACCESO</h3><input id="auth-e" placeholder="Correo"><div class="password-wrapper"><input id="auth-p" type="password" placeholder="Clave"><span class="eye-icon" onclick="togglePass('auth-p')">👁️</span></div><button onclick="login()" style="width:100%; margin-top:10px;">ENTRAR</button><div class="auth-links" onclick="openM('reg')">Crear cuenta nueva</div>`;
+        c.innerHTML = `<h3>ACCESO</h3><input id="auth-e" placeholder="Correo"><div class="password-wrapper"><input id="auth-p" type="password" placeholder="Clave"><span class="eye-icon" onclick="togglePass('auth-p')">👁️</span></div><button onclick="login()" style="width:100%; margin-top:10px;">ENTRAR</button>`;
     } else if(t==='reg') {
-        c.innerHTML = `<h3>REGISTRO</h3><input id="reg-u" placeholder="Nombre de Usuario"><input id="reg-e" placeholder="Correo"><input id="reg-p" type="password" placeholder="Clave"><button onclick="register()" style="width:100%; margin-top:10px; background:var(--green)">REGISTRAR</button><div class="auth-links" onclick="openM('auth')">Ya tengo cuenta</div>`;
+        c.innerHTML = `<h3>REGISTRO</h3><input id="reg-u" placeholder="Usuario"><input id="reg-e" placeholder="Correo"><input id="reg-p" type="password" placeholder="Clave"><button onclick="register()" style="width:100%; margin-top:10px; background:var(--green)">REGISTRAR</button>`;
     }
     c.innerHTML += `<button onclick="closeM()" style="background:#444; margin-top:10px; width:100%;">CERRAR</button>`;
 }
@@ -252,4 +251,3 @@ function createRain() { const c = document.getElementById('rain-container'); for
 </script>
 </body>
 </html>
-
