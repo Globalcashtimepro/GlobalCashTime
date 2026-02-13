@@ -11,14 +11,11 @@
         :root { --primary: #ffea00; --primary-dark: #ccac00; --bg: #050505; --card: #121212; --text: #ffffff; --green: #00ff66; --red: #ff3333; --link: #88ccff; }
         body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; overflow-x: hidden; position: relative; min-height: 100vh; }
         body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle at 50% 50%, #1a1500 0%, #050505 100%); z-index: -2; }
-        
         .bg-glow { position: fixed; width: 100vw; height: 100vh; z-index: -1; top: 0; left: 0; pointer-events: none; }
         .particle { position: absolute; width: 2px; height: 15px; background: var(--primary); opacity: 0.2; animation: rain linear infinite; }
         @keyframes rain { 0% { transform: translateY(-100px); } 100% { transform: translateY(110vh); } }
-
         header { width: 100%; padding: 20px 0; background: rgba(18, 18, 18, 0.9); border-bottom: 2px solid var(--primary); text-align: center; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); }
         .main-container { width: 95%; max-width: 1200px; padding: 10px; box-sizing: border-box; flex-grow: 1; }
-        
         button { background: linear-gradient(145deg, #fff200, #b8860b); color: #000; border: 1px solid #fff; padding: 12px; font-weight: 900; cursor: pointer; border-radius: 8px; font-size: 12px; text-transform: uppercase; transition: 0.3s; box-shadow: 0 0 10px rgba(255, 234, 0, 0.2); }
         .profile-card { display: none; background: linear-gradient(145deg, #1a1a1a, #0a0800); border: 2px solid var(--primary); padding: 15px; border-radius: 15px; margin: 0 auto 20px; width: 100%; max-width: 480px; box-sizing: border-box; }
         .label-gold { color: var(--primary); font-size: 10px; font-weight: bold; text-transform: uppercase; }
@@ -26,27 +23,20 @@
         .salas-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 20px; }
         .sala-card { background: #0a0a0a; border: 1px solid #333; border-radius: 12px; padding: 8px; text-align: center; cursor: pointer; transition: 0.3s; }
         .sala-card.active { border-color: var(--primary); background: #2a2200; box-shadow: 0 0 15px rgba(255, 234, 0, 0.4); }
-
         .game-layout { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; align-items: flex-start; }
         .left-col { width: 320px; flex-shrink: 0; }
         .right-col { flex: 1; min-width: 300px; }
-
         #canvas-container { position: relative; margin: 0 auto; width: 300px; height: 300px; }
         #pointer { position: absolute; right: -5px; top: 50%; transform: translateY(-50%); width: 30px; height: 20px; background: #fff; clip-path: polygon(100% 0%, 0% 50%, 100% 100%); z-index: 10; }
         canvas { width: 300px !important; height: 300px !important; border-radius: 50%; border: 4px solid #222; }
-        
         .numbers-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; background: #000; padding: 10px; border-radius: 8px; max-height: 400px; overflow-y: auto; }
-        .num-btn { padding: 8px 0; font-size: 10px; border: 1px solid #333; background: #111; color: #fff; cursor: pointer; border-radius: 4px; width: 100%; }
+        .num-btn { padding: 8px 0; font-size: 10px; border: 1px solid #333; background: #111; color: #fff; cursor: pointer; border-radius: 4px; }
         .num-btn.selected { background: var(--green); color: #000; font-weight: bold; }
         .num-btn.taken { background: var(--red) !important; color: #fff !important; cursor: not-allowed; pointer-events: none; }
-        
-        .btn-rand { background: #222; color: #fff; border: 1px solid #444; padding: 8px; font-size: 10px; flex: 1; text-transform: none; }
-        .btn-rand b { color: var(--primary); display: block; font-size: 11px; }
-
         .modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:1000; justify-content:center; align-items:center; }
         input { width: 90%; padding: 14px; margin: 10px 0; background: #000; color: #fff; border: 1px solid #444; border-radius: 8px; text-align: center; }
-        
         footer { width: 100%; padding: 30px 0; background: #0a0a0a; border-top: 1px solid #222; text-align: center; color: #555; font-size: 12px; }
+        @media (max-width: 768px) { .salas-grid { grid-template-columns: repeat(2, 1fr); } .left-col, .right-col { width: 100%; } }
     </style>
 </head>
 <body>
@@ -66,7 +56,6 @@
         </div>
         <div style="display:flex; gap:5px; margin-top:15px;">
             <button onclick="openM('dep')" style="flex:1;">DEPOSITAR</button>
-            <button onclick="openM('with')" style="flex:1; background:var(--red); color:#fff;">RETIRAR</button>
             <button onclick="logout()" style="flex:1; background:#333; color:#fff;">SALIR</button>
         </div>
     </div>
@@ -80,20 +69,7 @@
             <p id="prog-txt" style="font-weight:bold; margin:10px 0 5px;">0 / 200 Vendidos</p>
             <div id="live-counter" style="color:var(--green); font-size: 18px; font-weight: 900; height: 25px;"></div>
             <p id="status-txt" style="color:var(--primary); font-weight:bold; min-height:1.2em; margin-top: 5px;"></p>
-            
-            <table style="width:100%; background:#000; border:1px solid var(--primary-dark); font-size:11px; margin-top:10px;">
-                <tr><th style="background:var(--primary); color:#000;">GIRO</th><th style="background:var(--primary); color:#000;">PREMIO</th></tr>
-                <tr><td>1er Giro (15s)</td><td>$5.00 USD</td></tr>
-                <tr><td>2do Giro (15s)</td><td>$15.00 USD</td></tr>
-                <tr><td>3er Giro (15s)</td><td>$50.00 USD</td></tr>
-            </table>
-
             <button id="buy-btn" onclick="comprarSeleccion()" style="width:100%; height:50px; margin:10px 0; font-size:14px;">COMPRAR SELECCIONADOS</button>
-            <div style="display:flex; gap:5px;">
-                <button class="btn-rand" onclick="rand(5)"><b>5 Aleatorios</b>$2.50</button>
-                <button class="btn-rand" onclick="rand(15)"><b>15 Aleatorios</b>$7.50</button>
-                <button class="btn-rand" onclick="rand(25)"><b>25 Aleatorios</b>$12.50</button>
-            </div>
         </div>
         <div class="right-col">
             <h4 style="margin:0 0 10px 0; color:var(--primary);">SELECCIÓN MANUAL ($0.50)</h4>
@@ -110,7 +86,7 @@
 <div id="modal" class="modal"><div id="modal-content" class="section-box" style="width:90%; max-width:380px;"></div></div>
 
 <script>
-// CONFIGURACIÓN FIREBASE
+// CONFIG FIREBASE
 const firebaseConfig = {
   apiKey: "AIzaSyCntjKiPwfoCq0MzHIkybX4VZuYE_ZCnOE",
   authDomain: "globalcash-6fbe8.firebaseapp.com",
@@ -123,10 +99,7 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 let users = [], currentU = null, ang = 0, sSel = 0, mySelection = [];
-let salas = Array.from({length: 20}, (_, i) => ({ 
-    id: i+1, count: 0, sold: [], isSpinning: false, isWaiting: false, currentGiro: 0, endTime: 0 
-}));
-
+let salas = Array.from({length: 20}, (_, i) => ({ id: i+1, count: 0, sold: [], isSpinning: false, isWaiting: false, currentGiro: 0, endTime: 0 }));
 const wheelNumbers = Array.from({length: 200}, (_, i) => i + 1).sort(() => Math.random() - 0.5);
 
 window.onload = () => {
@@ -135,13 +108,10 @@ window.onload = () => {
         const data = snap.val() || {};
         if(data.users) users = data.users;
         if(data.salas) salas = data.salas;
-
         const saved = localStorage.getItem('GCT_SESSION');
-        if(saved === "ADMIN_GLOBAL") { currentU = {u:"ADMIN_GLOBAL", b:0}; }
-        else if(saved) currentU = users.find(x => x.u === saved);
-        
+        if(saved) currentU = users.find(x => x.u === saved);
         if(currentU) showProfile();
-        setSala(sSel); renderGrid(); renderNumbers(); updateUI();
+        renderGrid(); renderNumbers(); updateUI();
     });
     draw(); setInterval(logic, 30);
 };
@@ -149,19 +119,12 @@ window.onload = () => {
 function save() { db.ref('/').update({ users, salas }); }
 
 function logic() {
-    const now = Date.now();
-    let change = false;
+    const now = Date.now(); let change = false;
     salas.forEach((s, i) => {
         if(s.isSpinning) {
-            let timeLeft = s.endTime - now;
-            if(timeLeft <= 0) {
+            if(now >= s.endTime) {
                 s.isSpinning = false; s.isWaiting = true; s.endTime = now + 5000;
                 let win = getWinningNumber();
-                let winner = s.sold.find(x => x.n === win);
-                if(winner) {
-                    let u = users.find(x => x.u === winner.u);
-                    if(u) u.b += (s.currentGiro === 1 ? 5 : s.currentGiro === 2 ? 15 : 50);
-                }
                 if(i === sSel) { confetti(); document.getElementById('live-counter').innerText = `¡GANADOR: #${win}!`; }
                 change = true;
             } else if(i === sSel) { ang += 0.4; draw(); }
@@ -181,52 +144,32 @@ function logic() {
 function getWinningNumber() { const nAng = (ang % (Math.PI*2) + (Math.PI*2)) % (Math.PI*2); return wheelNumbers[Math.floor(((Math.PI*2-nAng)/(Math.PI*2))*200)%200]; }
 function draw() { const canvas = document.getElementById('wheel'), ctx = canvas.getContext('2d'), colors=['#3366FF','#FF3333','#FFCC00','#009933']; const arc=(Math.PI*2)/200; ctx.clearRect(0,0,600,600); for(let i=0; i<200; i++){ const a=ang+i*arc; ctx.beginPath(); ctx.fillStyle=colors[i%4]; ctx.moveTo(300,300); ctx.arc(300,300,300,a,a+arc); ctx.fill(); ctx.save(); ctx.translate(300,300); ctx.rotate(a+arc/2); ctx.fillStyle="#fff"; ctx.font="bold 8px Arial"; ctx.fillText(wheelNumbers[i],265,0); ctx.restore(); } }
 function createRain() { const c = document.getElementById('rain-container'); for(let i=0; i<60; i++) { let p = document.createElement('div'); p.className='particle'; p.style.left=Math.random()*100+'vw'; p.style.animationDuration=(Math.random()*3+2)+'s'; c.appendChild(p); } }
-function setSala(i) { sSel=i; document.getElementById('sala-txt').innerText=`SALA #${salas[i].id}`; renderGrid(); renderNumbers(); }
+function setSala(i) { sSel=i; renderGrid(); renderNumbers(); }
 function renderGrid() { const g = document.getElementById('grid-salas'); g.innerHTML=""; salas.forEach((s,i)=>{ g.innerHTML+=`<div class="sala-card ${sSel===i?'active':''}" onclick="setSala(${i})"><b>SALA ${s.id}</b><div>${s.count}/200</div></div>`; }); }
-function renderNumbers() { const c = document.getElementById('num-selector'); c.innerHTML=""; let s=salas[sSel]; let taken=s.sold.map(x=>x.n); for(let n=1;n<=200;n++){ let isT=taken.includes(n), isS=mySelection.includes(n); c.innerHTML+=`<button class="num-btn ${isT?'taken':''} ${isS?'selected':''}" onclick="${!isT?`toggleNum(${n})`:''}">${n}</button>`; } document.getElementById('prog-txt').innerText=`${s.count}/200 Vendidos`; }
-function toggleNum(n) { if(mySelection.includes(n)) mySelection=mySelection.filter(x=>x !== n); else mySelection.push(n); renderNumbers(); }
-function updateStatus() { let s=salas[sSel], st=document.getElementById('status-txt'); if(s.isSpinning) st.innerText=`GIRO ${s.currentGiro} EN PROGRESO...`; else if(s.isWaiting) st.innerText="ESPERANDO 5s PARA EL SIGUIENTE..."; else st.innerText=""; }
-function showProfile() { document.getElementById('guest-btn').style.display='none'; document.getElementById('user-profile').style.display='block'; document.getElementById('prof-name').innerText=currentU.u; }
-function updateUI() { if(currentU && currentU.u!=="ADMIN_GLOBAL") document.getElementById('prof-balance').innerText=`$${currentU.b.toFixed(2)}`; }
-function logout() { localStorage.removeItem('GCT_SESSION'); location.reload(); }
-
-function comprarSeleccion() { 
-    if(!currentU) return openM('auth'); 
-    let s=salas[sSel], cost=mySelection.length*0.5; 
-    if(currentU.b>=cost){ 
-        currentU.b-=cost; 
-        mySelection.forEach(n=>s.sold.push({n, u:currentU.u})); 
-        s.count=s.sold.length; 
-        mySelection=[]; 
-        if(s.count>=200 && !s.isSpinning){ s.currentGiro=1; s.isSpinning=true; s.endTime=Date.now()+15000; } 
-        save(); 
+function renderNumbers() { 
+    const c = document.getElementById('num-selector'); c.innerHTML=""; 
+    let s=salas[sSel]; let taken=s.sold.map(x=>x.n); 
+    for(let n=1;n<=200;n++){ 
+        let isT=taken.includes(n), isS=mySelection.includes(n); 
+        c.innerHTML+=`<button class="num-btn ${isT?'taken':''} ${isS?'selected':''}" onclick="${!isT?`toggleNum(${n})`:''}">${n}</button>`; 
     } 
+    document.getElementById('prog-txt').innerText=`${s.count}/200 Vendidos`; 
 }
-
-function rand(n) { let s=salas[sSel], avail=[]; let taken=s.sold.map(x=>x.n); for(let i=1;i<=200;i++) if(!taken.includes(i)) avail.push(i); mySelection=[]; for(let i=0; i<n && avail.length>0; i++) mySelection.push(avail.splice(Math.floor(Math.random()*avail.length),1)[0]); renderNumbers(); }
-
+function toggleNum(n) { if(mySelection.includes(n)) mySelection=mySelection.filter(x=>x !== n); else mySelection.push(n); renderNumbers(); }
+function updateStatus() { let s=salas[sSel], st=document.getElementById('status-txt'); if(s.isSpinning) st.innerText=`GIRO ${s.currentGiro} (15s)...`; else if(s.isWaiting) st.innerText="ESPERANDO 5s..."; else st.innerText=""; }
+function showProfile() { document.getElementById('guest-btn').style.display='none'; document.getElementById('user-profile').style.display='block'; document.getElementById('prof-name').innerText=currentU.u; }
+function updateUI() { if(currentU) document.getElementById('prof-balance').innerText=`$${currentU.b.toFixed(2)}`; }
+function logout() { localStorage.removeItem('GCT_SESSION'); location.reload(); }
 function openM(t) { 
     const c=document.getElementById('modal-content'); document.getElementById('modal').style.display='flex'; 
     if(t==='auth') c.innerHTML=`<h3>LOGIN</h3><input id="li-u" placeholder="Correo"><input id="li-p" type="password" placeholder="Clave"><button onclick="login()" style="width:100%">ENTRAR</button><button onclick="openM('reg')" style="margin-top:10px; background:#444; width:100%">REGISTRO</button>`; 
     else if(t==='reg') c.innerHTML=`<h3>REGISTRO</h3><input id="re-u" placeholder="Correo @gmail.com"><input id="re-p" type="password" placeholder="Clave min 8"><button onclick="register()" style="width:100%">CREAR CUENTA</button>`; 
     c.innerHTML+=`<button onclick="document.getElementById('modal').style.display='none'" style="margin-top:10px; width:100%; background:#222">CERRAR</button>`; 
 }
-
-function login() { 
-    let u=document.getElementById('li-u').value.toLowerCase(), p=document.getElementById('li-p').value; 
-    if(u==="admin_global" && p==="CASH_TIME_2026"){ localStorage.setItem('GCT_SESSION',"ADMIN_GLOBAL"); location.reload(); } 
-    else { let user=users.find(x=>x.u===u && x.p===p); if(user){ localStorage.setItem('GCT_SESSION',u); location.reload(); } } 
-}
-
-function register() { 
-    let u=document.getElementById('re-u').value.toLowerCase(), p=document.getElementById('re-p').value; 
-    if(u.endsWith("@gmail.com") && p.length>=8){ 
-        if(users.find(x=>x.u===u)) return alert("Ya existe");
-        users.push({u, p, b:0}); save(); alert("Registrado"); openM('auth'); 
-    } 
-}
+function login() { let u=document.getElementById('li-u').value.toLowerCase(), p=document.getElementById('li-p').value; let user=users.find(x=>x.u===u && x.p===p); if(user){ localStorage.setItem('GCT_SESSION',u); location.reload(); } else alert("Error"); }
+function register() { let u=document.getElementById('re-u').value.toLowerCase(), p=document.getElementById('re-p').value; if(u.endsWith("@gmail.com") && p.length>=8){ if(users.find(x=>x.u===u)) return alert("Existe"); users.push({u, p, b:0}); save(); alert("Registrado"); openM('auth'); } }
+function comprarSeleccion() { if(!currentU) return openM('auth'); let s=salas[sSel], cost=mySelection.length*0.5; if(currentU.b>=cost){ currentU.b-=cost; mySelection.forEach(n=>s.sold.push({n, u:currentU.u})); s.count=s.sold.length; mySelection=[]; if(s.count>=200 && !s.isSpinning){ s.currentGiro=1; s.isSpinning=true; s.endTime=Date.now()+15000; } save(); } }
 </script>
-
 </body>
 </html>
 
