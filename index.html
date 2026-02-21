@@ -178,7 +178,7 @@ function logic() {
     salas.forEach((s, i) => {
         if(s.isSpinning) {
             let timeLeft = s.endTime - now;
-            let totalSpinTime = 60000; // 1 MINUTO EXACTO
+            let totalSpinTime = 15000;
             let elapsed = totalSpinTime - timeLeft;
             if(timeLeft <= 0) {
                 s.isSpinning = false; s.isWaiting = true; s.endTime = now + 5000;
@@ -199,9 +199,8 @@ function logic() {
                 change = true;
             } else if(i === sSel) {
                 let speed = 0.45; 
-                // DESACELERACIÓN ULTRA LENTA (Inicia suavemente desde los 40 seg de transcurrido)
-                if (elapsed > 40000) { 
-                    let decelProgress = (elapsed - 40000) / 20000; 
+                if (elapsed > 10000) { 
+                    let decelProgress = (elapsed - 10000) / 5000; 
                     speed = Math.max(0.001, 0.45 * Math.pow(1 - decelProgress, 4)); 
                 }
                 ang += speed; draw(); 
@@ -210,7 +209,7 @@ function logic() {
         } else if(s.isWaiting) {
             if(now >= s.endTime) {
                 s.isWaiting = false;
-                if(s.currentGiro < 3) { s.currentGiro++; s.isSpinning = true; s.endTime = now + 60000; }
+                if(s.currentGiro < 3) { s.currentGiro++; s.isSpinning = true; s.endTime = now + 15000; }
                 else { 
                     setTimeout(() => { s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; save(); renderGrid(); renderNumbers(); }, 5000); 
                 }
@@ -251,7 +250,7 @@ function comprarSeleccion() {
         currentU.b -= cost; currentU.part = (currentU.part || 0) + mySelection.length;
         mySelection.forEach(num => s.sold.push({n: num, u: currentU.u}));
         s.count = s.sold.length; mySelection = []; 
-        if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.endTime = Date.now() + 60000; } 
+        if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.endTime = Date.now() + 15000; } 
         save(); renderGrid(); renderNumbers(); updateUI(); 
     } 
 }
@@ -369,4 +368,4 @@ function rechazarWith(idx) { let w = pendingWiths[idx]; let u = users.find(x => 
 
 <div style="font-size: 8px; color: #111; text-align: center; margin: 10px;">Todos los derechos reservados.</div>
 </body>
-</html>
+                </html>
