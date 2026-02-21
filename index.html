@@ -137,7 +137,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
+  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCntjKiPwfoCq0MzHIkybX4VZuYE_ZCnOE",
@@ -151,17 +151,49 @@
   };
 
   const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
+  const db = getDatabase(app);
+
+  // Vincular funciones globales para que el resto del código las use
+  window.saveToFirebase = () => {
+      set(ref(db, 'GCT_DATA'), {
+          users: users,
+          salas: salas,
+          historial: historial,
+          pendingDeps: pendingDeps,
+          pendingWiths: pendingWiths,
+          passReqs: passReqs
+      });
+  };
+
+  // Escuchar cambios en tiempo real
+  onValue(ref(db, 'GCT_DATA'), (snapshot) => {
+      const data = snapshot.val();
+      if(data) {
+          users = data.users || [];
+          salas = data.salas || salas;
+          historial = data.historial || [];
+          pendingDeps = data.pendingDeps || [];
+          pendingWiths = data.pendingWiths || [];
+          passReqs = data.passReqs || [];
+          
+          // Actualizar sesión si existe
+          const saved = localStorage.getItem('GCT_SESSION');
+          if(saved && saved !== "ADMIN_GLOBAL") {
+              currentU = users.find(x => x.u === saved);
+          }
+          
+          renderGrid();
+          renderNumbers();
+          updateUI();
+          if(currentU && currentU.u === "ADMIN_GLOBAL") renderAdmin();
+      }
+  });
 </script>
 
 <script>
-let users = JSON.parse(localStorage.getItem('GCT_MASTER_DB')) || [];
-let currentU = null, ang = 0, sSel = parseInt(localStorage.getItem('GCT_S_SEL')) || 0, mySelection = [], tempImg = "";
-let pendingDeps = JSON.parse(localStorage.getItem('GCT_PENDING')) || [];
-let pendingWiths = JSON.parse(localStorage.getItem('GCT_PENDING_WITH')) || [];
-let passReqs = JSON.parse(localStorage.getItem('GCT_PASS_REQ')) || [];
-let historial = JSON.parse(localStorage.getItem('GCT_HIST')) || [];
-let salas = JSON.parse(localStorage.getItem('GCT_SALAS_20')) || Array.from({length: 20}, (_, i) => ({ 
+let users = [], currentU = null, ang = 0, sSel = 0, mySelection = [], tempImg = "";
+let pendingDeps = [], pendingWiths = [], passReqs = [], historial = [];
+let salas = Array.from({length: 20}, (_, i) => ({ 
     id: i+1, count: 0, sold: [], isSpinning: false, isWaiting: false, currentGiro: 0, endTime: 0, lastWinner: null 
 }));
 
@@ -171,12 +203,11 @@ const PREMIOS = { 1: 5, 2: 15, 3: 50 };
 window.onload = () => {
     createRain();
     const saved = localStorage.getItem('GCT_SESSION');
-    if(saved) {
-        if(saved === "ADMIN_GLOBAL") { currentU = {u:"ADMIN_GLOBAL", b:0}; document.getElementById('admin-panel').style.display='block'; renderAdmin(); }
-        else { currentU = users.find(x => x.u === saved); }
-        if(currentU) showProfile();
+    if(saved === "ADMIN_GLOBAL") { 
+        currentU = {u:"ADMIN_GLOBAL", b:0}; 
+        document.getElementById('admin-panel').style.display='block'; 
     }
-    setSala(sSel); renderGrid(); renderNumbers(); draw(); setInterval(logic, 30);
+    setSala(0); draw(); setInterval(logic, 30);
 };
 
 function createRain() {
@@ -213,7 +244,6 @@ function logic() {
                     confetti({ particleCount: 100, spread: 70, origin: { x: 0.1, y: 0.5 } });
                     confetti({ particleCount: 100, spread: 70, origin: { x: 0.9, y: 0.5 } });
                     document.getElementById('live-counter').innerText = `¡GANADOR: #${s.lastWinner}!`; 
-                    updateUI(); 
                 }
                 change = true;
             } else if(i === sSel) {
@@ -230,9 +260,9 @@ function logic() {
                 s.isWaiting = false;
                 if(s.currentGiro < 3) { s.currentGiro++; s.isSpinning = true; s.endTime = now + 60000; }
                 else { 
-                    setTimeout(() => { s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; save(); renderGrid(); renderNumbers(); }, 5000); 
+                    s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; 
+                    change = true;
                 }
-                change = true;
             }
         }
     });
@@ -255,12 +285,7 @@ function draw() {
     }
 }
 
-function setSala(i) { 
-    sSel = i; localStorage.setItem('GCT_S_SEL', i); mySelection = []; 
-    document.getElementById('sala-txt').innerText = `SALA #${salas[i].id}`; 
-    document.getElementById('live-counter').innerText = ""; 
-    renderGrid(); renderNumbers(); 
-}
+function setSala(i) { sSel = i; document.getElementById('sala-txt').innerText = `SALA #${salas[i].id}`; renderGrid(); renderNumbers(); }
 
 function comprarSeleccion() { 
     if(!currentU) return openM('auth'); 
@@ -270,8 +295,8 @@ function comprarSeleccion() {
         mySelection.forEach(num => s.sold.push({n: num, u: currentU.u}));
         s.count = s.sold.length; mySelection = []; 
         if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.endTime = Date.now() + 60000; } 
-        save(); renderGrid(); renderNumbers(); updateUI(); 
-    } 
+        save(); 
+    } else { alert("Saldo insuficiente"); }
 }
 
 function rand(n) { 
@@ -280,6 +305,8 @@ function rand(n) {
     for(let i=0; i<n && avail.length>0; i++) mySelection.push(avail.splice(Math.floor(Math.random()*avail.length),1)[0]); 
     renderNumbers(); 
 }
+
+function save() { if(window.saveToFirebase) window.saveToFirebase(); }
 
 function openM(t) { 
     const c = document.getElementById('modal-content'); document.getElementById('modal').style.display='flex'; 
@@ -316,7 +343,6 @@ function updateStatus() {
     else st.innerText = ""; 
 }
 
-function save() { localStorage.setItem('GCT_SALAS_20', JSON.stringify(salas)); localStorage.setItem('GCT_MASTER_DB', JSON.stringify(users)); localStorage.setItem('GCT_HIST', JSON.stringify(historial)); localStorage.setItem('GCT_PENDING', JSON.stringify(pendingDeps)); localStorage.setItem('GCT_PENDING_WITH', JSON.stringify(pendingWiths)); localStorage.setItem('GCT_PASS_REQ', JSON.stringify(passReqs)); }
 function showProfile() { document.getElementById('guest-btn').style.display='none'; document.getElementById('user-profile').style.display='block'; document.getElementById('prof-name').innerText = currentU.u; updateUI(); }
 function updateUI() { if(currentU && currentU.u !== "ADMIN_GLOBAL") document.getElementById('prof-balance').innerText = `$${currentU.b.toFixed(2)}`; }
 function logout() { localStorage.removeItem('GCT_SESSION'); location.reload(); }
@@ -326,7 +352,8 @@ function register() {
     let u = document.getElementById('re-u').value.trim().toLowerCase(), p = document.getElementById('re-p').value; 
     if(!u.endsWith("@gmail.com")) return alert("Solo se permiten correos @gmail.com");
     if(p.length < 8) return alert("La contraseña debe tener al menos 8 dígitos.");
-    if(u && p) { users.push({u, p, b: 0, part: 0}); save(); alert("Registrado"); openM('auth'); } 
+    if(users.find(x => x.u === u)) return alert("El correo ya está registrado.");
+    if(u && p) { users.push({u, p, b: 0, part: 0}); save(); alert("Registrado con éxito"); openM('auth'); } 
 }
 
 function login() { 
