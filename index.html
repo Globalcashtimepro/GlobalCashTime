@@ -222,9 +222,7 @@ function logic() {
         if(s.isSpinning) {
             let timeLeft = s.endTime - now;
             if(timeLeft <= 0) {
-                s.isSpinning = false; 
-                s.isWaiting = true; 
-                s.endTime = now + 5000; // Parado por 5 segundos
+                s.isSpinning = false; s.isWaiting = true; s.endTime = now + 5000;
                 s.lastWinner = getWinningNumber();
                 let winnerData = (s.sold || []).find(x => x.n === s.lastWinner);
                 let premioMonto = PREMIOS[s.currentGiro];
@@ -241,12 +239,8 @@ function logic() {
         } else if(s.isWaiting) {
             if(now >= s.endTime) {
                 s.isWaiting = false;
-                if(s.currentGiro < 3) { 
-                    s.currentGiro++; 
-                    s.isSpinning = true; 
-                    s.endTime = now + 15000; // Cada giro dura 15 segundos
-                } else { 
-                    // Terminado el tercer giro (5 segundos ya pasaron arriba), reset automático
+                if(s.currentGiro < 3) { s.currentGiro++; s.isSpinning = true; s.endTime = now + 15000; }
+                else { 
                     s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; 
                 }
                 change = true;
@@ -287,11 +281,7 @@ function comprarSeleccion() {
         if(!s.sold) s.sold = [];
         mySelection.forEach(num => s.sold.push({n: num, u: currentU.u}));
         s.count = s.sold.length; mySelection = []; 
-        if(s.count >= 200) { 
-            s.currentGiro = 1; 
-            s.isSpinning = true; 
-            s.endTime = Date.now() + 15000; // Primer giro inicia con 15 seg
-        } 
+        if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.endTime = Date.now() + 15000; } 
         save(); 
     } 
 }
