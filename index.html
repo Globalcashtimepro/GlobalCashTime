@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>GLOBAL CASH TIME | Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     <style>
         :root { --primary: #ffea00; --primary-dark: #ccac00; --bg: #050505; --card: #121212; --text: #ffffff; --green: #00ff66; --red: #ff3333; --link: #88ccff; }
         body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; overflow-x: hidden; position: relative; min-height: 100vh; }
@@ -137,55 +135,48 @@
 
 <div id="modal" class="modal"><div id="modal-content" class="section-box" style="width:90%; max-width:380px;"></div></div>
 
-<script>
-// CONFIGURACIÓN DE FIREBASE (GLOBAL)
-const firebaseConfig = {
-  apiKey: "AIzaSyCntjKiPwfoCq0MzHIkybX4VZuYE_ZCnOE",
-  authDomain: "globalcash-6fbe8.firebaseapp.com",
-  databaseURL: "https://globalcash-6fbe8-default-rtdb.firebaseio.com",
-  projectId: "globalcash-6fbe8",
-  storageBucket: "globalcash-6fbe8.firebasestorage.app",
-  messagingSenderId: "476476155798",
-  appId: "1:476476155798:web:947a0e0140acfca78d5fb7"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
 
-let users = [], pendingDeps = [], pendingWiths = [], passReqs = [], historial = [], salas = [];
-let currentU = null, ang = 0, sSel = 0, mySelection = [], tempImg = "";
+  const firebaseConfig = {
+    apiKey: "AIzaSyCntjKiPwfoCq0MzHIkybX4VZuYE_ZCnOE",
+    authDomain: "globalcash-6fbe8.firebaseapp.com",
+    databaseURL: "https://globalcash-6fbe8-default-rtdb.firebaseio.com",
+    projectId: "globalcash-6fbe8",
+    storageBucket: "globalcash-6fbe8.firebasestorage.app",
+    messagingSenderId: "476476155798",
+    appId: "1:476476155798:web:947a0e0140acfca78d5fb7",
+    measurementId: "G-4L6LQ3ZL7S"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+</script>
+
+<script>
+let users = JSON.parse(localStorage.getItem('GCT_MASTER_DB')) || [];
+let currentU = null, ang = 0, sSel = parseInt(localStorage.getItem('GCT_S_SEL')) || 0, mySelection = [], tempImg = "";
+let pendingDeps = JSON.parse(localStorage.getItem('GCT_PENDING')) || [];
+let pendingWiths = JSON.parse(localStorage.getItem('GCT_PENDING_WITH')) || [];
+let passReqs = JSON.parse(localStorage.getItem('GCT_PASS_REQ')) || [];
+let historial = JSON.parse(localStorage.getItem('GCT_HIST')) || [];
+let salas = JSON.parse(localStorage.getItem('GCT_SALAS_20')) || Array.from({length: 20}, (_, i) => ({ 
+    id: i+1, count: 0, sold: [], isSpinning: false, isWaiting: false, currentGiro: 0, endTime: 0, lastWinner: null 
+}));
+
 const wheelNumbers = Array.from({length: 200}, (_, i) => i + 1).sort(() => Math.random() - 0.5);
 const PREMIOS = { 1: 5, 2: 15, 3: 50 };
 
-// SINCRONIZACIÓN EN TIEMPO REAL (MANTENIENDO TU LÓGICA)
-db.ref('GCT_CLOUD_DB').on('value', (snap) => {
-    const data = snap.val() || {};
-    users = data.users || [];
-    pendingDeps = data.pendingDeps || [];
-    pendingWiths = data.pendingWiths || [];
-    passReqs = data.passReqs || [];
-    historial = data.historial || [];
-    salas = data.salas || Array.from({length: 20}, (_, i) => ({ 
-        id: i+1, count: 0, sold: [], isSpinning: false, isWaiting: false, currentGiro: 0, endTime: 0, lastWinner: null 
-    }));
-    
+window.onload = () => {
+    createRain();
     const saved = localStorage.getItem('GCT_SESSION');
     if(saved) {
         if(saved === "ADMIN_GLOBAL") { currentU = {u:"ADMIN_GLOBAL", b:0}; document.getElementById('admin-panel').style.display='block'; renderAdmin(); }
         else { currentU = users.find(x => x.u === saved); }
         if(currentU) showProfile();
     }
-    renderGrid(); renderNumbers(); updateUI();
-});
-
-// TU FUNCIÓN SAVE AHORA ESCRIBE EN LA NUBE
-function save() { 
-    db.ref('GCT_CLOUD_DB').set({ users, pendingDeps, pendingWiths, passReqs, historial, salas }); 
-}
-
-window.onload = () => {
-    createRain();
-    sSel = parseInt(localStorage.getItem('GCT_S_SEL')) || 0;
-    setSala(sSel); draw(); setInterval(logic, 30);
+    setSala(sSel); renderGrid(); renderNumbers(); draw(); setInterval(logic, 30);
 };
 
 function createRain() {
@@ -206,7 +197,7 @@ function logic() {
     salas.forEach((s, i) => {
         if(s.isSpinning) {
             let timeLeft = s.endTime - now;
-            let totalSpinTime = 60000; // 1 MINUTO EXACTO
+            let totalSpinTime = 60000; 
             let elapsed = totalSpinTime - timeLeft;
             if(timeLeft <= 0) {
                 s.isSpinning = false; s.isWaiting = true; s.endTime = now + 5000;
@@ -227,9 +218,9 @@ function logic() {
                 change = true;
             } else if(i === sSel) {
                 let speed = 0.45; 
-                if (elapsed > 40000) { 
-                    let decelProgress = (elapsed - 40000) / 20000; 
-                    speed = Math.max(0.001, 0.45 * Math.pow(1 - decelProgress, 4)); 
+                if (elapsed > 35000) { 
+                    let decelProgress = (elapsed - 35000) / 25000; 
+                    speed = Math.max(0.0008, 0.45 * Math.pow(1 - decelProgress, 3.5)); 
                 }
                 ang += speed; draw(); 
                 document.getElementById('live-counter').innerText = `SORTEANDO: ${getWinningNumber()}`;
@@ -266,8 +257,7 @@ function draw() {
 
 function setSala(i) { 
     sSel = i; localStorage.setItem('GCT_S_SEL', i); mySelection = []; 
-    let s = salas[i] || {id: i+1};
-    document.getElementById('sala-txt').innerText = `SALA #${s.id}`; 
+    document.getElementById('sala-txt').innerText = `SALA #${salas[i].id}`; 
     document.getElementById('live-counter').innerText = ""; 
     renderGrid(); renderNumbers(); 
 }
@@ -316,17 +306,17 @@ function requestPass() {
 
 function togglePass(id) { const el = document.getElementById(id); el.type = el.type === 'password' ? 'text' : 'password'; }
 function renderGrid() { const grid = document.getElementById('grid-salas'); grid.innerHTML = ""; salas.forEach((s, i) => { grid.innerHTML += `<div class="sala-card ${sSel===i?'active':''}" onclick="setSala(${i})"><b>SALA ${s.id}</b><div>${s.count}/200</div></div>`; }); }
-function renderNumbers() { const cont = document.getElementById('num-selector'); if(!cont) return; cont.innerHTML = ""; const s = salas[sSel]; let takenNums = s.sold.map(x => x.n); for(let n=1; n<=200; n++) { const isSold = takenNums.includes(n), isSel = mySelection.includes(n); cont.innerHTML += `<button class="num-btn ${isSold?'taken':''} ${isSel?'selected':''}" onclick="${!isSold ? `toggleNum(${n})` : ''}">${n}</button>`; } document.getElementById('prog-txt').innerText = `${s.count} / 200 Vendidos`; }
+function renderNumbers() { const cont = document.getElementById('num-selector'); cont.innerHTML = ""; const s = salas[sSel]; let takenNums = s.sold.map(x => x.n); for(let n=1; n<=200; n++) { const isSold = takenNums.includes(n), isSel = mySelection.includes(n); cont.innerHTML += `<button class="num-btn ${isSold?'taken':''} ${isSel?'selected':''}" onclick="${!isSold ? `toggleNum(${n})` : ''}">${n}</button>`; } document.getElementById('prog-txt').innerText = `${s.count} / 200 Vendidos`; }
 function toggleNum(n) { if(mySelection.includes(n)) mySelection = mySelection.filter(x => x !== n); else mySelection.push(n); renderNumbers(); }
 
 function updateStatus() { 
     let s = salas[sSel], st = document.getElementById('status-txt'); 
-    if(!s) return;
     if(s.isSpinning) st.innerText = `GIRO ${s.currentGiro} EN PROGRESO...`; 
     else if(s.isWaiting) st.innerText = s.lastWinner ? `GIRO TERMINADO` : "";
     else st.innerText = ""; 
 }
 
+function save() { localStorage.setItem('GCT_SALAS_20', JSON.stringify(salas)); localStorage.setItem('GCT_MASTER_DB', JSON.stringify(users)); localStorage.setItem('GCT_HIST', JSON.stringify(historial)); localStorage.setItem('GCT_PENDING', JSON.stringify(pendingDeps)); localStorage.setItem('GCT_PENDING_WITH', JSON.stringify(pendingWiths)); localStorage.setItem('GCT_PASS_REQ', JSON.stringify(passReqs)); }
 function showProfile() { document.getElementById('guest-btn').style.display='none'; document.getElementById('user-profile').style.display='block'; document.getElementById('prof-name').innerText = currentU.u; updateUI(); }
 function updateUI() { if(currentU && currentU.u !== "ADMIN_GLOBAL") document.getElementById('prof-balance').innerText = `$${currentU.b.toFixed(2)}`; }
 function logout() { localStorage.removeItem('GCT_SESSION'); location.reload(); }
@@ -364,7 +354,7 @@ function solicitarRetiro() {
 }
 
 function renderAdmin() { 
-    const div = document.getElementById('pending-deps'); if(!div) return; div.innerHTML = "<h4>RECARGAS</h4>"; 
+    const div = document.getElementById('pending-deps'); div.innerHTML = "<h4>RECARGAS</h4>"; 
     pendingDeps.forEach((p, idx) => { div.innerHTML += `<div class="admin-notif"><b>${p.u}: $${p.a}</b><br><img src="${p.img}" style="width:100%; max-width:200px; cursor:pointer; border:1px solid gold;" onclick="window.open(this.src)"><br><button onclick="aprobar(${idx})">OK</button> <button onclick="rechazar(${idx})" style="background:red">X</button></div>`; });
     div.innerHTML += "<h4>RETIROS</h4>";
     pendingWiths.forEach((w, idx) => { div.innerHTML += `<div class="admin-notif" style="border-left-color:red"><b>Usuario:</b> ${w.u}<br><b>Monto:</b> $${w.a}<br><b>Wallet:</b> ${w.wallet}<br><button onclick="aprobarWith(${idx})">PAGADO</button> <button onclick="rechazarWith(${idx})" style="background:red">RECHAZAR</button></div>`; });
@@ -397,4 +387,4 @@ function rechazarWith(idx) { let w = pendingWiths[idx]; let u = users.find(x => 
 
 <div style="font-size: 8px; color: #111; text-align: center; margin: 10px;">Todos los derechos reservados.</div>
 </body>
-</html>
+                </html>
