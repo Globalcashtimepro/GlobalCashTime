@@ -135,65 +135,14 @@
 
 <div id="modal" class="modal"><div id="modal-content" class="section-box" style="width:90%; max-width:380px;"></div></div>
 
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyCntjKiPwfoCq0MzHIkybX4VZuYE_ZCnOE",
-    authDomain: "globalcash-6fbe8.firebaseapp.com",
-    databaseURL: "https://globalcash-6fbe8-default-rtdb.firebaseio.com",
-    projectId: "globalcash-6fbe8",
-    storageBucket: "globalcash-6fbe8.firebasestorage.app",
-    messagingSenderId: "476476155798",
-    appId: "1:476476155798:web:947a0e0140acfca78d5fb7",
-    measurementId: "G-4L6LQ3ZL7S"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
-
-  // Vincular funciones globales para que el resto del código las use
-  window.saveToFirebase = () => {
-      set(ref(db, 'GCT_DATA'), {
-          users: users,
-          salas: salas,
-          historial: historial,
-          pendingDeps: pendingDeps,
-          pendingWiths: pendingWiths,
-          passReqs: passReqs
-      });
-  };
-
-  // Escuchar cambios en tiempo real
-  onValue(ref(db, 'GCT_DATA'), (snapshot) => {
-      const data = snapshot.val();
-      if(data) {
-          users = data.users || [];
-          salas = data.salas || salas;
-          historial = data.historial || [];
-          pendingDeps = data.pendingDeps || [];
-          pendingWiths = data.pendingWiths || [];
-          passReqs = data.passReqs || [];
-          
-          // Actualizar sesión si existe
-          const saved = localStorage.getItem('GCT_SESSION');
-          if(saved && saved !== "ADMIN_GLOBAL") {
-              currentU = users.find(x => x.u === saved);
-          }
-          
-          renderGrid();
-          renderNumbers();
-          updateUI();
-          if(currentU && currentU.u === "ADMIN_GLOBAL") renderAdmin();
-      }
-  });
-</script>
-
 <script>
-let users = [], currentU = null, ang = 0, sSel = 0, mySelection = [], tempImg = "";
-let pendingDeps = [], pendingWiths = [], passReqs = [], historial = [];
-let salas = Array.from({length: 20}, (_, i) => ({ 
+let users = JSON.parse(localStorage.getItem('GCT_MASTER_DB')) || [];
+let currentU = null, ang = 0, sSel = parseInt(localStorage.getItem('GCT_S_SEL')) || 0, mySelection = [], tempImg = "";
+let pendingDeps = JSON.parse(localStorage.getItem('GCT_PENDING')) || [];
+let pendingWiths = JSON.parse(localStorage.getItem('GCT_PENDING_WITH')) || [];
+let passReqs = JSON.parse(localStorage.getItem('GCT_PASS_REQ')) || [];
+let historial = JSON.parse(localStorage.getItem('GCT_HIST')) || [];
+let salas = JSON.parse(localStorage.getItem('GCT_SALAS_20')) || Array.from({length: 20}, (_, i) => ({ 
     id: i+1, count: 0, sold: [], isSpinning: false, isWaiting: false, currentGiro: 0, endTime: 0, lastWinner: null 
 }));
 
@@ -203,11 +152,12 @@ const PREMIOS = { 1: 5, 2: 15, 3: 50 };
 window.onload = () => {
     createRain();
     const saved = localStorage.getItem('GCT_SESSION');
-    if(saved === "ADMIN_GLOBAL") { 
-        currentU = {u:"ADMIN_GLOBAL", b:0}; 
-        document.getElementById('admin-panel').style.display='block'; 
+    if(saved) {
+        if(saved === "ADMIN_GLOBAL") { currentU = {u:"ADMIN_GLOBAL", b:0}; document.getElementById('admin-panel').style.display='block'; renderAdmin(); }
+        else { currentU = users.find(x => x.u === saved); }
+        if(currentU) showProfile();
     }
-    setSala(0); draw(); setInterval(logic, 30);
+    setSala(sSel); renderGrid(); renderNumbers(); draw(); setInterval(logic, 30);
 };
 
 function createRain() {
@@ -228,7 +178,7 @@ function logic() {
     salas.forEach((s, i) => {
         if(s.isSpinning) {
             let timeLeft = s.endTime - now;
-            let totalSpinTime = 60000; 
+            let totalSpinTime = 60000; // 1 MINUTO EXACTO
             let elapsed = totalSpinTime - timeLeft;
             if(timeLeft <= 0) {
                 s.isSpinning = false; s.isWaiting = true; s.endTime = now + 5000;
@@ -244,13 +194,15 @@ function logic() {
                     confetti({ particleCount: 100, spread: 70, origin: { x: 0.1, y: 0.5 } });
                     confetti({ particleCount: 100, spread: 70, origin: { x: 0.9, y: 0.5 } });
                     document.getElementById('live-counter').innerText = `¡GANADOR: #${s.lastWinner}!`; 
+                    updateUI(); 
                 }
                 change = true;
             } else if(i === sSel) {
                 let speed = 0.45; 
-                if (elapsed > 35000) { 
-                    let decelProgress = (elapsed - 35000) / 25000; 
-                    speed = Math.max(0.0008, 0.45 * Math.pow(1 - decelProgress, 3.5)); 
+                // DESACELERACIÓN ULTRA LENTA (Inicia suavemente desde los 40 seg de transcurrido)
+                if (elapsed > 40000) { 
+                    let decelProgress = (elapsed - 40000) / 20000; 
+                    speed = Math.max(0.001, 0.45 * Math.pow(1 - decelProgress, 4)); 
                 }
                 ang += speed; draw(); 
                 document.getElementById('live-counter').innerText = `SORTEANDO: ${getWinningNumber()}`;
@@ -260,9 +212,9 @@ function logic() {
                 s.isWaiting = false;
                 if(s.currentGiro < 3) { s.currentGiro++; s.isSpinning = true; s.endTime = now + 60000; }
                 else { 
-                    s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; 
-                    change = true;
+                    setTimeout(() => { s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; save(); renderGrid(); renderNumbers(); }, 5000); 
                 }
+                change = true;
             }
         }
     });
@@ -285,7 +237,12 @@ function draw() {
     }
 }
 
-function setSala(i) { sSel = i; document.getElementById('sala-txt').innerText = `SALA #${salas[i].id}`; renderGrid(); renderNumbers(); }
+function setSala(i) { 
+    sSel = i; localStorage.setItem('GCT_S_SEL', i); mySelection = []; 
+    document.getElementById('sala-txt').innerText = `SALA #${salas[i].id}`; 
+    document.getElementById('live-counter').innerText = ""; 
+    renderGrid(); renderNumbers(); 
+}
 
 function comprarSeleccion() { 
     if(!currentU) return openM('auth'); 
@@ -295,8 +252,8 @@ function comprarSeleccion() {
         mySelection.forEach(num => s.sold.push({n: num, u: currentU.u}));
         s.count = s.sold.length; mySelection = []; 
         if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.endTime = Date.now() + 60000; } 
-        save(); 
-    } else { alert("Saldo insuficiente"); }
+        save(); renderGrid(); renderNumbers(); updateUI(); 
+    } 
 }
 
 function rand(n) { 
@@ -305,8 +262,6 @@ function rand(n) {
     for(let i=0; i<n && avail.length>0; i++) mySelection.push(avail.splice(Math.floor(Math.random()*avail.length),1)[0]); 
     renderNumbers(); 
 }
-
-function save() { if(window.saveToFirebase) window.saveToFirebase(); }
 
 function openM(t) { 
     const c = document.getElementById('modal-content'); document.getElementById('modal').style.display='flex'; 
@@ -343,6 +298,7 @@ function updateStatus() {
     else st.innerText = ""; 
 }
 
+function save() { localStorage.setItem('GCT_SALAS_20', JSON.stringify(salas)); localStorage.setItem('GCT_MASTER_DB', JSON.stringify(users)); localStorage.setItem('GCT_HIST', JSON.stringify(historial)); localStorage.setItem('GCT_PENDING', JSON.stringify(pendingDeps)); localStorage.setItem('GCT_PENDING_WITH', JSON.stringify(pendingWiths)); localStorage.setItem('GCT_PASS_REQ', JSON.stringify(passReqs)); }
 function showProfile() { document.getElementById('guest-btn').style.display='none'; document.getElementById('user-profile').style.display='block'; document.getElementById('prof-name').innerText = currentU.u; updateUI(); }
 function updateUI() { if(currentU && currentU.u !== "ADMIN_GLOBAL") document.getElementById('prof-balance').innerText = `$${currentU.b.toFixed(2)}`; }
 function logout() { localStorage.removeItem('GCT_SESSION'); location.reload(); }
@@ -352,8 +308,7 @@ function register() {
     let u = document.getElementById('re-u').value.trim().toLowerCase(), p = document.getElementById('re-p').value; 
     if(!u.endsWith("@gmail.com")) return alert("Solo se permiten correos @gmail.com");
     if(p.length < 8) return alert("La contraseña debe tener al menos 8 dígitos.");
-    if(users.find(x => x.u === u)) return alert("El correo ya está registrado.");
-    if(u && p) { users.push({u, p, b: 0, part: 0}); save(); alert("Registrado con éxito"); openM('auth'); } 
+    if(u && p) { users.push({u, p, b: 0, part: 0}); save(); alert("Registrado"); openM('auth'); } 
 }
 
 function login() { 
