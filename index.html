@@ -163,7 +163,7 @@
         const data = snapshot.val();
         if(data) {
             users = data.users || [];
-            salas = data.salas || salas;
+            if(data.salas) salas = data.salas;
             historial = data.historial || [];
             pendingDeps = data.pendingDeps || [];
             pendingWiths = data.pendingWiths || [];
@@ -202,6 +202,7 @@ window.onload = () => {
 
 function createRain() {
     const container = document.getElementById('rain-container');
+    if(!container) return;
     for(let i=0; i<60; i++) {
         let p = document.createElement('div');
         p.className = 'particle';
@@ -218,8 +219,7 @@ function logic() {
     salas.forEach((s, i) => {
         if(s.isSpinning) {
             let timeLeft = s.endTime - now;
-            let totalSpinTime = 60000; 
-            let elapsed = totalSpinTime - timeLeft;
+            let totalSpinTime = 15000; 
             if(timeLeft <= 0) {
                 s.isSpinning = false; s.isWaiting = true; s.endTime = now + 5000;
                 s.lastWinner = getWinningNumber();
@@ -237,18 +237,13 @@ function logic() {
                 }
                 change = true;
             } else if(i === sSel) {
-                let speed = 0.45; 
-                if (elapsed > 40000) { 
-                    let decelProgress = (elapsed - 40000) / 20000; 
-                    speed = Math.max(0.001, 0.45 * Math.pow(1 - decelProgress, 4)); 
-                }
-                ang += speed; draw(); 
+                ang += 0.45; draw(); 
                 document.getElementById('live-counter').innerText = `SORTEANDO: ${getWinningNumber()}`;
             }
         } else if(s.isWaiting) {
             if(now >= s.endTime) {
                 s.isWaiting = false;
-                if(s.currentGiro < 3) { s.currentGiro++; s.isSpinning = true; s.endTime = now + 60000; }
+                if(s.currentGiro < 3) { s.currentGiro++; s.isSpinning = true; s.endTime = now + 15000; }
                 else { 
                     s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; 
                     change = true;
@@ -267,7 +262,9 @@ function getWinningNumber() {
 }
 
 function draw() {
-    const canvas = document.getElementById('wheel'), ctx = canvas.getContext('2d'), colors = ['#3366FF', '#FF3333', '#FFCC00', '#009933'];
+    const canvas = document.getElementById('wheel');
+    if(!canvas) return;
+    const ctx = canvas.getContext('2d'), colors = ['#3366FF', '#FF3333', '#FFCC00', '#009933'];
     const arc = (Math.PI*2)/200; ctx.clearRect(0,0,600,600);
     for(let i=0; i<200; i++) {
         const a = ang + i*arc; ctx.beginPath(); ctx.fillStyle = colors[i%4]; ctx.moveTo(300,300); ctx.arc(300,300,300, a, a+arc); ctx.fill();
@@ -281,13 +278,12 @@ function comprarSeleccion() {
     if(!currentU) return openM('auth'); 
     let s = salas[sSel], cost = mySelection.length * 0.5; 
     if(cost > 0 && currentU.b >= cost) { 
-        currentU.b -= cost; currentU.part = (currentU.part || 0) + mySelection.length;
-        historial.push({ type:'buy', u: currentU.u, sala: s.id, nums: [...mySelection], fecha: new Date().toLocaleString() });
+        currentU.b -= cost;
         mySelection.forEach(num => s.sold.push({n: num, u: currentU.u}));
         s.count = s.sold.length; mySelection = []; 
-        if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.endTime = Date.now() + 60000; } 
+        if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.endTime = Date.now() + 15000; } 
         save(); 
-    } 
+    } else if (cost > 0) { alert("Saldo insuficiente"); }
 }
 
 function rand(n) { 
@@ -304,17 +300,14 @@ function openM(t) {
     if(t==='auth') { c.innerHTML = `<h3>LOGIN</h3><input id="li-u" placeholder="Correo"><div class="password-wrapper"><input id="li-p" type="password" placeholder="Clave"><span class="eye-icon" onclick="togglePass('li-p')">👁️</span></div><button onclick="login()" style="width:100%; margin-top:10px;">ENTRAR</button><div class="auth-links"><span onclick="openM('reg')">Registrarse</span> | <span onclick="openM('recover')">Olvidé mi clave</span></div>`; }
     else if(t==='reg') { c.innerHTML = `<h3>REGISTRO</h3><p style="font-size:10px;">Solo @gmail.com - Clave min. 8 dígitos</p><input id="re-u" placeholder="Correo electrónico"><div class="password-wrapper"><input id="re-p" type="password" placeholder="Crear Clave"><span class="eye-icon" onclick="togglePass('re-p')">👁️</span></div><button onclick="register()" style="width:100%; margin-top:10px;">CREAR CUENTA</button><div class="auth-links"><span onclick="openM('auth')">Ya tengo cuenta</span></div>`; }
     else if(t==='recover') { c.innerHTML = `<h3>RECUPERAR</h3><input id="rec-u" placeholder="Tu correo"><button onclick="requestPass()" style="width:100%">SOLICITAR RECUPERACIÓN</button>`; }
-    else if(t==='dep') { c.innerHTML = `<h3>RECARGAR</h3><p style="font-size:10px; color:var(--primary);">Mínimo de depósito: $5.00 USD</p><div class="wallet-box">TRC20: <b>TFtX2tLdjqTnTdVAUfQ8YNACv6QUAK9LAy</b></div><input id="dep-amt" type="number" placeholder="Monto $"><div class="upload-box" onclick="document.getElementById('f-in').click()">+ COMPROBANTE<input type="file" id="f-in" hidden onchange="previewFile()"><img id="preview-img"></div><button onclick="notificarPago()" style="width:100%">ENVIAR</button>`; }
-    else if(t==='with') { c.innerHTML = `<h3>RETIRAR</h3><p style="font-size:10px; color:var(--red);">Mínimo de retiro: $10.00 USD</p><input id="wi-amt" type="number" placeholder="Monto $"><input id="wi-wallet" placeholder="Tu Billetera TRC20"><button onclick="solicitarRetiro()" style="width:100%; background:var(--red); color:#fff;">SOLICITAR RETIRO</button>`; }
+    else if(t==='dep') { c.innerHTML = `<h3>RECARGAR</h3><p style="font-size:10px; color:var(--primary);">Mínimo: $5.00 USD</p><div class="wallet-box">TRC20: <b>TFtX2tLdjqTnTdVAUfQ8YNACv6QUAK9LAy</b></div><input id="dep-amt" type="number" placeholder="Monto $"><div class="upload-box" onclick="document.getElementById('f-in').click()">+ COMPROBANTE<input type="file" id="f-in" hidden onchange="previewFile()"><img id="preview-img"></div><button onclick="notificarPago()" style="width:100%">ENVIAR</button>`; }
+    else if(t==='with') { c.innerHTML = `<h3>RETIRAR</h3><p style="font-size:10px; color:var(--red);">Mínimo: $10.00 USD</p><input id="wi-amt" type="number" placeholder="Monto $"><input id="wi-wallet" placeholder="Tu Billetera TRC20"><button onclick="solicitarRetiro()" style="width:100%; background:var(--red); color:#fff;">SOLICITAR RETIRO</button>`; }
     else if(t==='hist') { 
         let displayHist = historial.filter(h => h.u === currentU.u || h.sala === salas[sSel].id || currentU.u === 'ADMIN_GLOBAL'); 
-        c.innerHTML = `<h3>HISTORIAL SALA #${salas[sSel].id}</h3><div style="max-height:250px; overflow-y:auto; font-size:11px; text-align:left;">` + 
+        c.innerHTML = `<h3>HISTORIAL</h3><div style="max-height:250px; overflow-y:auto; font-size:11px; text-align:left;">` + 
         displayHist.reverse().map(h => {
-            let msg = "";
-            if(h.type === 'buy') msg = `<b style="color:var(--primary)">${h.u}</b> compró: [${h.nums.join(', ')}]`;
-            else if(h.type === 'win') msg = `<b style="color:var(--green)">GANADOR: ${h.u}</b> (Nº${h.ganador}) - $${h.premio}`;
-            else msg = h.msg || "";
-            return `<div style="border-bottom:1px solid #333; padding:8px 5px;">${msg}<br><small style="opacity:0.6;">${h.fecha}</small></div>`;
+            let msg = h.type === 'win' ? `<b style="color:var(--green)">GANADOR: ${h.u}</b> (Nº${h.ganador})` : `<b style="color:var(--primary)">${h.u}</b> compró #${h.nums?h.nums.length:'?'}`;
+            return `<div style="border-bottom:1px solid #333; padding:8px 5px;">${msg}<br><small>${h.fecha}</small></div>`;
         }).join('') + `</div>`; 
     }
     c.innerHTML += `<button onclick="closeM()" style="background:#444; margin-top:10px; width:100%;">CERRAR</button>`; 
@@ -328,7 +321,7 @@ function toggleNum(n) { if(mySelection.includes(n)) mySelection = mySelection.fi
 function updateStatus() { 
     let s = salas[sSel], st = document.getElementById('status-txt'); 
     if(s.isSpinning) st.innerText = `GIRO ${s.currentGiro} EN PROGRESO...`; 
-    else if(s.isWaiting) st.innerText = s.lastWinner ? `GIRO TERMINADO` : "";
+    else if(s.isWaiting) st.innerText = `ESPERANDO PRÓXIMO GIRO...`;
     else st.innerText = ""; 
 }
 
@@ -340,72 +333,40 @@ function closeM() { document.getElementById('modal').style.display='none'; tempI
 function login() { 
     let u = document.getElementById('li-u').value.trim().toLowerCase(), p = document.getElementById('li-p').value; 
     if(u==="admin_global" && p==="CASH_TIME_2026") { localStorage.setItem('GCT_SESSION', "ADMIN_GLOBAL"); location.reload(); return; } 
-    let user = users.find(x=>x.u===u && x.p===p); if(user) { localStorage.setItem('GCT_SESSION', u); location.reload(); } else alert("Credenciales incorrectas"); 
+    let user = users.find(x=>x.u===u && x.p===p); if(user) { localStorage.setItem('GCT_SESSION', u); location.reload(); } else alert("Error de acceso"); 
 }
 
 function register() { 
     let u = document.getElementById('re-u').value.trim().toLowerCase(), p = document.getElementById('re-p').value; 
-    if(!u.endsWith("@gmail.com")) return alert("Solo @gmail.com");
-    if(p.length < 8) return alert("Mínimo 8 dígitos");
-    if(users.find(x => x.u === u)) return alert("Ya existe");
-    users.push({u, p, b: 0, part: 0}); save(); alert("Registrado"); openM('auth');
+    if(!u.endsWith("@gmail.com") || p.length < 8) return alert("Email @gmail.com y clave de 8 caracteres.");
+    if(users.find(x => x.u === u)) return alert("Usuario ya existe.");
+    users.push({u, p, b: 0}); save(); alert("Cuenta creada exitosamente"); openM('auth');
 }
 
-function requestPass() { 
-    let u = document.getElementById('rec-u').value; 
-    if(u) { 
-        let userData = users.find(x => x.u === u);
-        passReqs.push({ u: u, info: userData ? `Clave: ${userData.p} | Balance: $${userData.b.toFixed(2)}` : "No encontrado", fecha: new Date().toLocaleString() }); 
-        save(); alert("Solicitado"); closeM(); 
-    } 
-}
-
+function requestPass() { let u = document.getElementById('rec-u').value; if(u) { passReqs.push({ u: u, fecha: new Date().toLocaleString() }); save(); alert("Solicitud enviada"); closeM(); } }
 function previewFile() { const f = document.getElementById('f-in').files[0]; const r = new FileReader(); r.onloadend = () => { tempImg = r.result; let p = document.getElementById('preview-img'); p.src=tempImg; p.style.display='block'; }; if(f) r.readAsDataURL(f); }
-function notificarPago() { 
-    let a = parseFloat(document.getElementById('dep-amt').value); 
-    if(a >= 5 && tempImg) { pendingDeps.push({ u: currentU.u, a: a, img: tempImg }); save(); alert("Enviado"); closeM(); } 
-}
-
-function solicitarRetiro() {
-    let a = parseFloat(document.getElementById('wi-amt').value);
-    let wal = document.getElementById('wi-wallet').value;
-    if(a >= 10 && currentU.b >= a && wal) {
-        currentU.b -= a;
-        pendingWiths.push({ u: currentU.u, a: a, wallet: wal, balanceRestante: currentU.b, fecha: new Date().toLocaleString() });
-        historial.push({ u: currentU.u, msg: `Retiro Solicitado: -$${a}`, fecha: new Date().toLocaleString() });
-        save(); alert("Solicitado"); closeM();
-    }
-}
+function notificarPago() { let a = parseFloat(document.getElementById('dep-amt').value); if(a >= 5 && tempImg) { pendingDeps.push({ u: currentU.u, a: a, img: tempImg }); save(); alert("Pago enviado a revisión"); closeM(); } }
+function solicitarRetiro() { let a = parseFloat(document.getElementById('wi-amt').value); let wal = document.getElementById('wi-wallet').value; if(a >= 10 && currentU.b >= a && wal) { currentU.b -= a; pendingWiths.push({ u: currentU.u, a: a, wallet: wal }); save(); alert("Retiro solicitado"); closeM(); } }
 
 // ADMIN FUNCTIONS
 function renderAdmin() { 
     const div = document.getElementById('pending-deps'); div.innerHTML = "<h4>RECARGAS</h4>"; 
-    pendingDeps.forEach((p, idx) => { div.innerHTML += `<div class="admin-notif"><b>${p.u}: $${p.a}</b><br><img src="${p.img}" style="width:100%; max-width:200px;" onclick="window.open(this.src)"><br><button onclick="aprobar(${idx})">OK</button> <button onclick="rechazar(${idx})" style="background:red">X</button></div>`; });
-    div.innerHTML += "<h4>RETIROS</h4>";
-    pendingWiths.forEach((w, idx) => { div.innerHTML += `<div class="admin-notif" style="border-left-color:red"><b>Usuario:</b> ${w.u}<br><b>Monto:</b> $${w.a}<br><b>Wallet:</b> ${w.wallet}<br><button onclick="aprobarWith(${idx})">PAGADO</button> <button onclick="rechazarWith(${idx})" style="background:red">X</button></div>`; });
+    pendingDeps.forEach((p, idx) => { div.innerHTML += `<div class="admin-notif"><b>${p.u}: $${p.a}</b><br><button onclick="aprobar(${idx})">APROBAR</button> <button onclick="rechazar(${idx})" style="background:red">X</button></div>`; });
 }
-
 function renderUserDB() {
-    const div = document.getElementById('pending-deps'); div.innerHTML = "<h4>DB USUARIOS</h4>";
-    users.forEach((u, idx) => {
-        div.innerHTML += `<div class="admin-notif"><b>Email:</b> ${u.u}<br><b>Clave:</b> ${u.p}<br><b>Saldo:</b> $${u.b.toFixed(2)}<br>
-        <button onclick="editBal(${idx}, 0.5)">+0.5$</button> <button onclick="editBal(${idx}, -0.5)" style="background:red">-0.5$</button>
-        <button onclick="editBal(${idx}, 10)">+10$</button> <button onclick="editBal(${idx}, -10)" style="background:red">-10$</button></div>`;
-    });
+    const div = document.getElementById('pending-deps'); div.innerHTML = "<h4>USUARIOS</h4>";
+    users.forEach((u, idx) => { div.innerHTML += `<div class="admin-notif">${u.u} - $${u.b.toFixed(2)} <button onclick="editBal(${idx}, 5)">+5</button></div>`; });
 }
-
 function renderPassReqs() {
-    const div = document.getElementById('pending-deps'); div.innerHTML = "<h4>CLAVES SOLICITADAS</h4>";
-    passReqs.forEach((r, idx) => { div.innerHTML += `<div class="admin-notif"><b>User:</b> ${r.u}<br>${r.info}<br><button onclick="passReqs.splice(${idx},1);save();renderPassReqs();">BORRAR</button></div>`; });
+    const div = document.getElementById('pending-deps'); div.innerHTML = "<h4>RECOVERS</h4>";
+    passReqs.forEach((r, idx) => { div.innerHTML += `<div class="admin-notif">${r.u} <button onclick="passReqs.splice(${idx},1);save();renderPassReqs();">X</button></div>`; });
 }
-
 function editBal(idx, amt) { users[idx].b += amt; save(); renderUserDB(); }
 function aprobar(idx) { let p = pendingDeps[idx]; let u = users.find(x => x.u === p.u); if(u) u.b += p.a; pendingDeps.splice(idx, 1); save(); renderAdmin(); }
 function rechazar(idx) { pendingDeps.splice(idx, 1); save(); renderAdmin(); }
-function aprobarWith(idx) { pendingWiths.splice(idx, 1); save(); renderAdmin(); }
-function rechazarWith(idx) { let w = pendingWiths[idx]; let u = users.find(x => x.u === w.u); if(u) u.b += w.a; pendingWiths.splice(idx, 1); save(); renderAdmin(); }
 </script>
 
 <div style="font-size: 8px; color: #111; text-align: center; margin: 10px;">Todos los derechos reservados.</div>
 </body>
 </html>
+
