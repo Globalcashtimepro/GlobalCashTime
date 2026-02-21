@@ -5,10 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>GLOBAL CASH TIME | Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
+        // Tu configuración de Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyCntjKiPwfoCq0MzHIkybX4VZuYE_ZCnOE",
             authDomain: "globalcash-6fbe8.firebaseapp.com",
@@ -22,10 +24,10 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
-        window.dbRef = ref(db, 'GCT_DATA');
+        const gctRef = ref(db, 'GCT_SYSTEM');
 
-        // Sincronización en tiempo real
-        onValue(window.dbRef, (snapshot) => {
+        // Sincronización en tiempo real desde la nube
+        onValue(gctRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
                 users = data.users || [];
@@ -35,21 +37,31 @@
                 passReqs = data.passReqs || [];
                 historial = data.historial || [];
                 
+                // Actualizar usuario actual si está logueado
                 if(currentU && currentU.u !== "ADMIN_GLOBAL") {
-                    currentU = users.find(x => x.u === currentU.u) || currentU;
+                    let liveU = users.find(x => x.u === currentU.u);
+                    if(liveU) currentU = liveU;
                 }
+                
                 renderGrid();
                 renderNumbers();
                 updateUI();
             }
         });
 
+        // Reemplazo de la función save para que escriba en Firebase
         window.save = function() {
-            set(window.dbRef, {
-                users, salas, pendingDeps, pendingWiths, passReqs, historial
+            set(gctRef, {
+                users: users,
+                salas: salas,
+                pendingDeps: pendingDeps,
+                pendingWiths: pendingWiths,
+                passReqs: passReqs,
+                historial: historial
             });
         };
     </script>
+
     <style>
         :root { --primary: #ffea00; --primary-dark: #ccac00; --bg: #050505; --card: #121212; --text: #ffffff; --green: #00ff66; --red: #ff3333; --link: #88ccff; }
         body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; overflow-x: hidden; position: relative; min-height: 100vh; }
@@ -198,12 +210,17 @@ window.onload = () => {
     createRain();
     const saved = localStorage.getItem('GCT_SESSION');
     if(saved) {
-        if(saved === "ADMIN_GLOBAL") { currentU = {u:"ADMIN_GLOBAL", b:0}; document.getElementById('admin-panel').style.display='block'; renderAdmin(); }
-        else { 
-            // Se sincronizará vía Firebase onValue
-            currentU = {u: saved, b: 0}; 
+        if(saved === "ADMIN_GLOBAL") { 
+            currentU = {u:"ADMIN_GLOBAL", b:0}; 
+            document.getElementById('admin-panel').style.display='block'; 
+            renderAdmin(); 
+        } else {
+            // Buscaremos el usuario en el array sincronizado por Firebase
+            setTimeout(() => {
+                currentU = users.find(x => x.u === saved);
+                if(currentU) showProfile();
+            }, 1000);
         }
-        showProfile();
     }
     setSala(sSel); renderGrid(); renderNumbers(); draw(); setInterval(logic, 30);
 };
@@ -226,7 +243,7 @@ function logic() {
     salas.forEach((s, i) => {
         if(s.isSpinning) {
             let timeLeft = s.endTime - now;
-            let totalSpinTime = 15000; // Ajustado a 15 segundos según instrucción
+            let totalSpinTime = 15000; // Ajustado a 15s según historial
             let elapsed = totalSpinTime - timeLeft;
             if(timeLeft <= 0) {
                 s.isSpinning = false; s.isWaiting = true; s.endTime = now + 5000;
@@ -259,13 +276,13 @@ function logic() {
                 s.isWaiting = false;
                 if(s.currentGiro < 3) { s.currentGiro++; s.isSpinning = true; s.endTime = now + 15000; }
                 else { 
-                    setTimeout(() => { s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; window.save(); renderGrid(); renderNumbers(); }, 5000); 
+                    setTimeout(() => { s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; save(); renderGrid(); renderNumbers(); }, 5000); 
                 }
                 change = true;
             }
         }
     });
-    if(change) window.save();
+    if(change) save();
     updateStatus();
 }
 
@@ -299,7 +316,7 @@ function comprarSeleccion() {
         mySelection.forEach(num => s.sold.push({n: num, u: currentU.u}));
         s.count = s.sold.length; mySelection = []; 
         if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.endTime = Date.now() + 15000; } 
-        window.save(); renderGrid(); renderNumbers(); updateUI(); 
+        save(); renderGrid(); renderNumbers(); updateUI(); 
     } 
 }
 
@@ -329,7 +346,7 @@ function requestPass() {
     if(u) { 
         let userData = users.find(x => x.u === u);
         passReqs.push({ u: u, info: userData ? `Clave: ${userData.p} | Balance: $${userData.b.toFixed(2)}` : "Usuario no encontrado", fecha: new Date().toLocaleString() }); 
-        window.save(); alert("Solicitud enviada."); closeM(); 
+        save(); alert("Solicitud enviada."); closeM(); 
     } 
 }
 
@@ -346,7 +363,7 @@ function updateStatus() {
 }
 
 function showProfile() { document.getElementById('guest-btn').style.display='none'; document.getElementById('user-profile').style.display='block'; document.getElementById('prof-name').innerText = currentU.u; updateUI(); }
-function updateUI() { if(currentU && currentU.u !== "ADMIN_GLOBAL") { let liveU = users.find(x => x.u === currentU.u); if(liveU) document.getElementById('prof-balance').innerText = `$${liveU.b.toFixed(2)}`; } }
+function updateUI() { if(currentU && currentU.u !== "ADMIN_GLOBAL") document.getElementById('prof-balance').innerText = `$${currentU.b.toFixed(2)}`; }
 function logout() { localStorage.removeItem('GCT_SESSION'); location.reload(); }
 function closeM() { document.getElementById('modal').style.display='none'; tempImg=""; }
 
@@ -354,7 +371,7 @@ function register() {
     let u = document.getElementById('re-u').value.trim().toLowerCase(), p = document.getElementById('re-p').value; 
     if(!u.endsWith("@gmail.com")) return alert("Solo se permiten correos @gmail.com");
     if(p.length < 8) return alert("La contraseña debe tener al menos 8 dígitos.");
-    if(u && p) { users.push({u, p, b: 0, part: 0}); window.save(); alert("Registrado"); openM('auth'); } 
+    if(u && p) { users.push({u, p, b: 0, part: 0}); save(); alert("Registrado"); openM('auth'); } 
 }
 
 function login() { 
@@ -366,7 +383,7 @@ function login() {
 function previewFile() { const f = document.getElementById('f-in').files[0]; const r = new FileReader(); r.onloadend = () => { tempImg = r.result; let p = document.getElementById('preview-img'); p.src=tempImg; p.style.display='block'; }; if(f) r.readAsDataURL(f); }
 function notificarPago() { 
     let a = parseFloat(document.getElementById('dep-amt').value); 
-    if(a >= 5 && tempImg) { pendingDeps.push({ u: currentU.u, a: a, img: tempImg }); window.save(); alert("Solicitud enviada."); closeM(); } 
+    if(a >= 5 && tempImg) { pendingDeps.push({ u: currentU.u, a: a, img: tempImg }); save(); alert("Solicitud enviada."); closeM(); } 
     else alert("Depósito mínimo $5 y adjuntar comprobante."); 
 }
 
@@ -377,7 +394,7 @@ function solicitarRetiro() {
         currentU.b -= a;
         pendingWiths.push({ u: currentU.u, a: a, wallet: wal, balanceRestante: currentU.b, fecha: new Date().toLocaleString() });
         historial.push({ u: currentU.u, msg: `Retiro Solicitado: -$${a}`, fecha: new Date().toLocaleString() });
-        window.save(); alert("Solicitud enviada."); closeM(); updateUI();
+        save(); alert("Solicitud enviada."); closeM(); updateUI();
     } else { alert("Mínimo $10, saldo insuficiente o wallet vacía."); }
 }
 
@@ -403,16 +420,17 @@ function renderUserDB() {
 
 function renderPassReqs() {
     const div = document.getElementById('pending-deps'); div.innerHTML = "<h4>NOTIFICACIONES RECUPERACIÓN</h4>";
-    passReqs.forEach((r, idx) => { div.innerHTML += `<div class="admin-notif"><b>User:</b> ${r.u}<br>${r.info}<br><small>${r.fecha}</small><br><button onclick="passReqs.splice(${idx},1);window.save();renderPassReqs();" style="background:#444">BORRAR NOTIFICACIÓN</button></div>`; });
+    passReqs.forEach((r, idx) => { div.innerHTML += `<div class="admin-notif"><b>User:</b> ${r.u}<br>${r.info}<br><small>${r.fecha}</small><br><button onclick="passReqs.splice(${idx},1);save();renderPassReqs();" style="background:#444">BORRAR NOTIFICACIÓN</button></div>`; });
 }
 
-function editBal(idx, amt) { users[idx].b += amt; if(users[idx].b < 0) users[idx].b = 0; window.save(); renderUserDB(); updateUI(); }
-function aprobar(idx) { let p = pendingDeps[idx]; let u = users.find(x => x.u === p.u); if(u) { u.b += p.a; historial.push({ u: p.u, msg: `Depósito Aprobado: +$${p.a}`, fecha: new Date().toLocaleString() }); } pendingDeps.splice(idx, 1); window.save(); renderAdmin(); updateUI(); }
-function rechazar(idx) { let p = pendingDeps[idx]; historial.push({ u: p.u, msg: `Depósito Rechazado: $${p.a}`, fecha: new Date().toLocaleString() }); pendingDeps.splice(idx, 1); window.save(); renderAdmin(); }
-function aprobarWith(idx) { let w = pendingWiths[idx]; historial.push({ u: w.u, msg: `Retiro Aprobado: $${w.a}`, fecha: new Date().toLocaleString() }); pendingWiths.splice(idx, 1); window.save(); renderAdmin(); }
-function rechazarWith(idx) { let w = pendingWiths[idx]; let u = users.find(x => x.u === w.u); if(u) u.b += w.a; historial.push({ u: w.u, msg: `Retiro Rechazado (Saldo devuelto): $${w.a}`, fecha: new Date().toLocaleString() }); pendingWiths.splice(idx, 1); window.save(); renderAdmin(); updateUI(); }
+function editBal(idx, amt) { users[idx].b += amt; if(users[idx].b < 0) users[idx].b = 0; save(); renderUserDB(); updateUI(); }
+function aprobar(idx) { let p = pendingDeps[idx]; let u = users.find(x => x.u === p.u); if(u) { u.b += p.a; historial.push({ u: p.u, msg: `Depósito Aprobado: +$${p.a}`, fecha: new Date().toLocaleString() }); } pendingDeps.splice(idx, 1); save(); renderAdmin(); updateUI(); }
+function rechazar(idx) { let p = pendingDeps[idx]; historial.push({ u: p.u, msg: `Depósito Rechazado: $${p.a}`, fecha: new Date().toLocaleString() }); pendingDeps.splice(idx, 1); save(); renderAdmin(); }
+function aprobarWith(idx) { let w = pendingWiths[idx]; historial.push({ u: w.u, msg: `Retiro Aprobado: $${w.a}`, fecha: new Date().toLocaleString() }); pendingWiths.splice(idx, 1); save(); renderAdmin(); }
+function rechazarWith(idx) { let w = pendingWiths[idx]; let u = users.find(x => x.u === w.u); if(u) u.b += w.a; historial.push({ u: w.u, msg: `Retiro Rechazado (Saldo devuelto): $${w.a}`, fecha: new Date().toLocaleString() }); pendingWiths.splice(idx, 1); save(); renderAdmin(); updateUI(); }
 </script>
 
-<div style="font-size: 8px; color: #222; text-align: center;">Todos los derechos reservados.</div>
+<div style="font-size: 8px; color: #111; text-align: center; margin: 10px;">Todos los derechos reservados.</div>
 </body>
 </html>
+
