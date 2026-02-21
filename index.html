@@ -219,7 +219,6 @@ function logic() {
     salas.forEach((s, i) => {
         if(s.isSpinning) {
             let timeLeft = s.endTime - now;
-            let totalSpinTime = 15000; 
             if(timeLeft <= 0) {
                 s.isSpinning = false; s.isWaiting = true; s.endTime = now + 5000;
                 s.lastWinner = getWinningNumber();
@@ -348,7 +347,6 @@ function previewFile() { const f = document.getElementById('f-in').files[0]; con
 function notificarPago() { let a = parseFloat(document.getElementById('dep-amt').value); if(a >= 5 && tempImg) { pendingDeps.push({ u: currentU.u, a: a, img: tempImg }); save(); alert("Pago enviado a revisión"); closeM(); } }
 function solicitarRetiro() { let a = parseFloat(document.getElementById('wi-amt').value); let wal = document.getElementById('wi-wallet').value; if(a >= 10 && currentU.b >= a && wal) { currentU.b -= a; pendingWiths.push({ u: currentU.u, a: a, wallet: wal }); save(); alert("Retiro solicitado"); closeM(); } }
 
-// ADMIN FUNCTIONS
 function renderAdmin() { 
     const div = document.getElementById('pending-deps'); div.innerHTML = "<h4>RECARGAS</h4>"; 
     pendingDeps.forEach((p, idx) => { div.innerHTML += `<div class="admin-notif"><b>${p.u}: $${p.a}</b><br><button onclick="aprobar(${idx})">APROBAR</button> <button onclick="rechazar(${idx})" style="background:red">X</button></div>`; });
@@ -369,4 +367,3 @@ function rechazar(idx) { pendingDeps.splice(idx, 1); save(); renderAdmin(); }
 <div style="font-size: 8px; color: #111; text-align: center; margin: 10px;">Todos los derechos reservados.</div>
 </body>
 </html>
-
