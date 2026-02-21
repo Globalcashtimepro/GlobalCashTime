@@ -181,7 +181,6 @@ function initApp() {
             }));
         }
         
-        // FORZAR RESTABLECIMIENTO DE SALA 1 Y 2 SI ESTÁN ATASCADAS
         newSalas.forEach((s, i) => {
             if((s.id === 1 || s.id === 2) && s.count >= 200 && !s.isSpinning && !s.isWaiting) {
                 s.count = 0; s.sold = []; s.currentGiro = 0; s.isSpinning = false; s.isWaiting = false;
@@ -303,7 +302,6 @@ function setSala(i) {
     localStorage.setItem('GCT_S_SEL', i); 
     mySelection = []; 
     document.getElementById('sala-txt').innerText = `SALA #${salas[i]?.id || (i+1)}`; 
-    // LIMPIAR TEXTOS DE SORTEO AL CAMBIAR DE SALA
     document.getElementById('live-counter').innerText = "";
     document.getElementById('status-txt').innerText = "";
     renderGrid(); 
@@ -346,9 +344,9 @@ function openM(t) {
         let displayHist = historial.filter(h => h.u === currentU?.u || h.sala === (salas[sSel]?.id || sSel+1) || (currentU && currentU.u === 'ADMIN_GLOBAL')); 
         c.innerHTML = `<h3>HISTORIAL</h3><div style="max-height:250px; overflow-y:auto; font-size:11px; text-align:left;">` + 
         displayHist.reverse().map(h => {
-            let salaTag = `<span style="color:var(--primary)">[SALA ${h.sala}]</span>`;
-            let msg = h.type === 'buy' ? `${salaTag} <b style="color:var(--primary)">${h.u}</b> compró: [${h.nums.join(', ')}]` : 
-                      h.type === 'win' ? `${salaTag} <b style="color:var(--green)">GANADOR: ${h.u}</b> (Nº${h.ganador}) - $${h.premio}` : `${salaTag} ${h.msg || ""}`;
+            let salaTag = h.sala !== 'SISTEMA' ? `<span style="color:var(--primary)">[SALA ${h.sala}]</span> ` : `<span style="color:var(--link)">[SISTEMA]</span> `;
+            let msg = h.type === 'buy' ? `${salaTag}<b style="color:var(--primary)">${h.u}</b> compró: [${h.nums.join(', ')}]` : 
+                      h.type === 'win' ? `${salaTag}<b style="color:var(--green)">GANADOR: ${h.u}</b> (Nº${h.ganador}) - $${h.premio}` : `${salaTag}${h.msg || ""}`;
             return `<div style="border-bottom:1px solid #333; padding:8px 5px;">${msg}<br><small style="opacity:0.6;">${h.fecha}</small></div>`;
         }).join('') + `</div>`; 
     }
@@ -372,7 +370,6 @@ function updateStatus() {
     let s = salas[sSel], st = document.getElementById('status-txt'); if(!s) return;
     if(s.isSpinning) st.innerText = `GIRO ${s.currentGiro} EN PROGRESO...`; 
     else if(s.isWaiting) st.innerText = s.lastWinner ? `GANADOR: #${s.lastWinner}` : "";
-    // NO PONER NADA SI NO HAY SORTEO ACTIVO
 }
 function showProfile() { document.getElementById('guest-btn').style.display='none'; document.getElementById('user-profile').style.display='block'; document.getElementById('prof-name').innerText = currentU.u; }
 function updateUI() { if(currentU && currentU.u !== "ADMIN_GLOBAL") document.getElementById('prof-balance').innerText = `$${currentU.b.toFixed(2)}`; }
@@ -461,14 +458,25 @@ function renderPassReqs() {
 function editBal(idx, amt) { users[idx].b += amt; if(users[idx].b < 0) users[idx].b = 0; save(); }
 function aprobar(idx) { 
     let p = pendingDeps[idx]; let u = users.find(x => x.u === p.u); 
-    if(u) { u.b += p.a; historial.push({ type: 'sys', u: p.u, msg: `Depósito Aprobado: +$${p.a}`, sala: 'SISTEMA', fecha: new Date().toLocaleString() }); } 
+    if(u) { u.b += p.a; historial.push({ type: 'sys', u: p.u, msg: `DEPÓSITO APROBADO: +$${p.a.toFixed(2)}`, sala: 'SISTEMA', fecha: new Date().toLocaleString() }); } 
     pendingDeps.splice(idx, 1); save(); 
 }
-function rechazarDep(idx) { pendingDeps.splice(idx, 1); save(); }
-function aprobarWith(idx) { pendingWiths.splice(idx, 1); save(); }
+function rechazarDep(idx) { 
+    let p = pendingDeps[idx];
+    historial.push({ type: 'sys', u: p.u, msg: `DEPÓSITO RECHAZADO: $${p.a.toFixed(2)}`, sala: 'SISTEMA', fecha: new Date().toLocaleString() });
+    pendingDeps.splice(idx, 1); save(); 
+}
+function aprobarWith(idx) { 
+    let w = pendingWiths[idx];
+    historial.push({ type: 'sys', u: w.u, msg: `RETIRO APROBADO (Finalizado): $${w.a.toFixed(2)}`, sala: 'SISTEMA', fecha: new Date().toLocaleString() });
+    pendingWiths.splice(idx, 1); save(); 
+}
 function rechazarWith(idx) {
     let w = pendingWiths[idx]; let u = users.find(x => x.u === w.u);
-    if(u) u.b += w.a; 
+    if(u) {
+        u.b += w.a; 
+        historial.push({ type: 'sys', u: w.u, msg: `RETIRO RECHAZADO (Saldo devuelto): $${w.a.toFixed(2)}`, sala: 'SISTEMA', fecha: new Date().toLocaleString() });
+    }
     pendingWiths.splice(idx, 1); save();
 }
 </script>
