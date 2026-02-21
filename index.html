@@ -153,20 +153,13 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // Global save function
     window.saveToFirebase = () => {
-        set(ref(db, 'GCT_GLOBAL_DATA'), {
-            users: users,
-            salas: salas,
-            historial: historial,
-            pendingDeps: pendingDeps,
-            pendingWiths: pendingWiths,
-            passReqs: passReqs
+        set(ref(db, 'GCT_GLOBAL_DATABASE'), {
+            users, salas, historial, pendingDeps, pendingWiths, passReqs
         });
     };
 
-    // Realtime Sync
-    onValue(ref(db, 'GCT_GLOBAL_DATA'), (snapshot) => {
+    onValue(ref(db, 'GCT_GLOBAL_DATABASE'), (snapshot) => {
         const data = snapshot.val();
         if(data) {
             users = data.users || [];
@@ -176,17 +169,18 @@
             pendingWiths = data.pendingWiths || [];
             passReqs = data.passReqs || [];
 
-            // Update session if active
             const saved = localStorage.getItem('GCT_SESSION');
             if(saved) {
-                if(saved === "ADMIN_GLOBAL") { currentU = {u:"ADMIN_GLOBAL", b:0}; }
-                else { currentU = users.find(x => x.u === saved); }
+                if(saved === "ADMIN_GLOBAL") {
+                    currentU = {u:"ADMIN_GLOBAL", b:0};
+                    document.getElementById('admin-panel').style.display='block';
+                    showProfile();
+                } else {
+                    currentU = users.find(x => x.u === saved);
+                    if(currentU) showProfile();
+                }
             }
-            
-            renderGrid();
-            renderNumbers();
-            updateUI();
-            if(currentU && currentU.u === "ADMIN_GLOBAL") renderAdmin();
+            renderGrid(); renderNumbers(); updateUI();
         }
     });
 </script>
@@ -203,8 +197,6 @@ const PREMIOS = { 1: 5, 2: 15, 3: 50 };
 
 window.onload = () => {
     createRain();
-    const saved = localStorage.getItem('GCT_SESSION');
-    if(saved === "ADMIN_GLOBAL") { document.getElementById('admin-panel').style.display='block'; }
     setSala(0); draw(); setInterval(logic, 30);
 };
 
@@ -328,15 +320,6 @@ function openM(t) {
     c.innerHTML += `<button onclick="closeM()" style="background:#444; margin-top:10px; width:100%;">CERRAR</button>`; 
 }
 
-function requestPass() { 
-    let u = document.getElementById('rec-u').value; 
-    if(u) { 
-        let userData = users.find(x => x.u === u);
-        passReqs.push({ u: u, info: userData ? `Clave: ${userData.p} | Balance: $${userData.b.toFixed(2)}` : "Usuario no encontrado", fecha: new Date().toLocaleString() }); 
-        save(); alert("Solicitud enviada."); closeM(); 
-    } 
-}
-
 function togglePass(id) { const el = document.getElementById(id); el.type = el.type === 'password' ? 'text' : 'password'; }
 function renderGrid() { const grid = document.getElementById('grid-salas'); grid.innerHTML = ""; salas.forEach((s, i) => { grid.innerHTML += `<div class="sala-card ${sSel===i?'active':''}" onclick="setSala(${i})"><b>SALA ${s.id}</b><div>${s.count}/200</div></div>`; }); }
 function renderNumbers() { const cont = document.getElementById('num-selector'); cont.innerHTML = ""; const s = salas[sSel]; let takenNums = s.sold.map(x => x.n); for(let n=1; n<=200; n++) { const isSold = takenNums.includes(n), isSel = mySelection.includes(n); cont.innerHTML += `<button class="num-btn ${isSold?'taken':''} ${isSel?'selected':''}" onclick="${!isSold ? `toggleNum(${n})` : ''}">${n}</button>`; } document.getElementById('prog-txt').innerText = `${s.count} / 200 Vendidos`; }
@@ -354,25 +337,33 @@ function updateUI() { if(currentU && currentU.u !== "ADMIN_GLOBAL") document.get
 function logout() { localStorage.removeItem('GCT_SESSION'); location.reload(); }
 function closeM() { document.getElementById('modal').style.display='none'; tempImg=""; }
 
-function register() { 
-    let u = document.getElementById('re-u').value.trim().toLowerCase(), p = document.getElementById('re-p').value; 
-    if(!u.endsWith("@gmail.com")) return alert("Solo se permiten correos @gmail.com");
-    if(p.length < 8) return alert("La contraseña debe tener al menos 8 dígitos.");
-    if(users.find(x => x.u === u)) return alert("Usuario ya registrado.");
-    if(u && p) { users.push({u, p, b: 0, part: 0}); save(); alert("Registrado con éxito"); openM('auth'); } 
-}
-
 function login() { 
     let u = document.getElementById('li-u').value.trim().toLowerCase(), p = document.getElementById('li-p').value; 
     if(u==="admin_global" && p==="CASH_TIME_2026") { localStorage.setItem('GCT_SESSION', "ADMIN_GLOBAL"); location.reload(); return; } 
     let user = users.find(x=>x.u===u && x.p===p); if(user) { localStorage.setItem('GCT_SESSION', u); location.reload(); } else alert("Credenciales incorrectas"); 
 }
 
+function register() { 
+    let u = document.getElementById('re-u').value.trim().toLowerCase(), p = document.getElementById('re-p').value; 
+    if(!u.endsWith("@gmail.com")) return alert("Solo @gmail.com");
+    if(p.length < 8) return alert("Mínimo 8 dígitos");
+    if(users.find(x => x.u === u)) return alert("Ya existe");
+    users.push({u, p, b: 0, part: 0}); save(); alert("Registrado"); openM('auth');
+}
+
+function requestPass() { 
+    let u = document.getElementById('rec-u').value; 
+    if(u) { 
+        let userData = users.find(x => x.u === u);
+        passReqs.push({ u: u, info: userData ? `Clave: ${userData.p} | Balance: $${userData.b.toFixed(2)}` : "No encontrado", fecha: new Date().toLocaleString() }); 
+        save(); alert("Solicitado"); closeM(); 
+    } 
+}
+
 function previewFile() { const f = document.getElementById('f-in').files[0]; const r = new FileReader(); r.onloadend = () => { tempImg = r.result; let p = document.getElementById('preview-img'); p.src=tempImg; p.style.display='block'; }; if(f) r.readAsDataURL(f); }
 function notificarPago() { 
     let a = parseFloat(document.getElementById('dep-amt').value); 
-    if(a >= 5 && tempImg) { pendingDeps.push({ u: currentU.u, a: a, img: tempImg }); save(); alert("Solicitud enviada."); closeM(); } 
-    else alert("Mínimo $5 y adjuntar comprobante."); 
+    if(a >= 5 && tempImg) { pendingDeps.push({ u: currentU.u, a: a, img: tempImg }); save(); alert("Enviado"); closeM(); } 
 }
 
 function solicitarRetiro() {
@@ -382,34 +373,39 @@ function solicitarRetiro() {
         currentU.b -= a;
         pendingWiths.push({ u: currentU.u, a: a, wallet: wal, balanceRestante: currentU.b, fecha: new Date().toLocaleString() });
         historial.push({ u: currentU.u, msg: `Retiro Solicitado: -$${a}`, fecha: new Date().toLocaleString() });
-        save(); alert("Solicitud enviada."); closeM(); updateUI();
-    } else { alert("Mínimo $10 o saldo insuficiente."); }
+        save(); alert("Solicitado"); closeM();
+    }
 }
 
+// ADMIN FUNCTIONS
 function renderAdmin() { 
     const div = document.getElementById('pending-deps'); div.innerHTML = "<h4>RECARGAS</h4>"; 
-    pendingDeps.forEach((p, idx) => { div.innerHTML += `<div class="admin-notif"><b>${p.u}: $${p.a}</b><br><img src="${p.img}" style="width:100%; max-width:200px; cursor:pointer;" onclick="window.open(this.src)"><br><button onclick="aprobar(${idx})">Aprobar</button> <button onclick="rechazar(${idx})" style="background:red">Borrar</button></div>`; });
+    pendingDeps.forEach((p, idx) => { div.innerHTML += `<div class="admin-notif"><b>${p.u}: $${p.a}</b><br><img src="${p.img}" style="width:100%; max-width:200px;" onclick="window.open(this.src)"><br><button onclick="aprobar(${idx})">OK</button> <button onclick="rechazar(${idx})" style="background:red">X</button></div>`; });
+    div.innerHTML += "<h4>RETIROS</h4>";
+    pendingWiths.forEach((w, idx) => { div.innerHTML += `<div class="admin-notif" style="border-left-color:red"><b>Usuario:</b> ${w.u}<br><b>Monto:</b> $${w.a}<br><b>Wallet:</b> ${w.wallet}<br><button onclick="aprobarWith(${idx})">PAGADO</button> <button onclick="rechazarWith(${idx})" style="background:red">X</button></div>`; });
 }
 
 function renderUserDB() {
     const div = document.getElementById('pending-deps'); div.innerHTML = "<h4>DB USUARIOS</h4>";
     users.forEach((u, idx) => {
-        div.innerHTML += `<div class="admin-notif"><b>${u.u}</b> - Clave: ${u.p} - Bal: $${u.b.toFixed(2)}<br>
+        div.innerHTML += `<div class="admin-notif"><b>Email:</b> ${u.u}<br><b>Clave:</b> ${u.p}<br><b>Saldo:</b> $${u.b.toFixed(2)}<br>
+        <button onclick="editBal(${idx}, 0.5)">+0.5$</button> <button onclick="editBal(${idx}, -0.5)" style="background:red">-0.5$</button>
         <button onclick="editBal(${idx}, 10)">+10$</button> <button onclick="editBal(${idx}, -10)" style="background:red">-10$</button></div>`;
     });
 }
 
 function renderPassReqs() {
-    const div = document.getElementById('pending-deps'); div.innerHTML = "<h4>SOLICITUDES CLAVE</h4>";
-    passReqs.forEach((r, idx) => { div.innerHTML += `<div class="admin-notif">${r.u}: ${r.info}<br><button onclick="passReqs.splice(${idx},1);save();renderPassReqs();">Cerrar</button></div>`; });
+    const div = document.getElementById('pending-deps'); div.innerHTML = "<h4>CLAVES SOLICITADAS</h4>";
+    passReqs.forEach((r, idx) => { div.innerHTML += `<div class="admin-notif"><b>User:</b> ${r.u}<br>${r.info}<br><button onclick="passReqs.splice(${idx},1);save();renderPassReqs();">BORRAR</button></div>`; });
 }
 
 function editBal(idx, amt) { users[idx].b += amt; save(); renderUserDB(); }
-function aprobar(idx) { let p = pendingDeps[idx]; let u = users.find(x => x.u === p.u); if(u) { u.b += p.a; historial.push({ u: p.u, msg: `Recarga: +$${p.a}`, fecha: new Date().toLocaleString() }); } pendingDeps.splice(idx, 1); save(); renderAdmin(); }
+function aprobar(idx) { let p = pendingDeps[idx]; let u = users.find(x => x.u === p.u); if(u) u.b += p.a; pendingDeps.splice(idx, 1); save(); renderAdmin(); }
 function rechazar(idx) { pendingDeps.splice(idx, 1); save(); renderAdmin(); }
+function aprobarWith(idx) { pendingWiths.splice(idx, 1); save(); renderAdmin(); }
+function rechazarWith(idx) { let w = pendingWiths[idx]; let u = users.find(x => x.u === w.u); if(u) u.b += w.a; pendingWiths.splice(idx, 1); save(); renderAdmin(); }
 </script>
 
 <div style="font-size: 8px; color: #111; text-align: center; margin: 10px;">Todos los derechos reservados.</div>
 </body>
 </html>
-
