@@ -180,8 +180,15 @@ function initApp() {
                 id: i+1, count: 0, sold: [], isSpinning: false, isWaiting: false, currentGiro: 0, endTime: 0, lastWinner: null 
             }));
         }
-        salas = newSalas;
+        
+        // FORZAR RESTABLECIMIENTO DE SALA 1 Y 2 SI ESTÁN ATASCADAS
+        newSalas.forEach((s, i) => {
+            if((s.id === 1 || s.id === 2) && s.count >= 200 && !s.isSpinning && !s.isWaiting) {
+                s.count = 0; s.sold = []; s.currentGiro = 0; s.isSpinning = false; s.isWaiting = false;
+            }
+        });
 
+        salas = newSalas;
         const saved = localStorage.getItem('GCT_SESSION');
         if(saved) {
             if(saved === "ADMIN_GLOBAL") { currentU = {u:"ADMIN_GLOBAL", b:0}; document.getElementById('admin-panel').style.display='block'; }
@@ -193,12 +200,7 @@ function initApp() {
         renderGrid();
         renderNumbers();
         document.getElementById('sala-txt').innerText = `SALA #${salas[sSel]?.id || (sSel+1)}`;
-        if(currentU && currentU.u === "ADMIN_GLOBAL") {
-             const activeAdminView = document.getElementById('pending-deps').getAttribute('data-view');
-             if(activeAdminView === 'db') renderUserDB();
-             else if(activeAdminView === 'notif') renderAdmin();
-             else if(activeAdminView === 'pass') renderPassReqs();
-        }
+        updateUI();
     });
     setInterval(logic, 30);
     draw();
@@ -241,31 +243,29 @@ function logic() {
                 
                 if(s.currentGiro === 3) {
                     setTimeout(() => {
-                        // REINICIO FORZADO DIRECTO EN LA INSTANCIA PARA SALAS 1 Y 2
                         s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; s.isWaiting = false; s.isSpinning = false;
-                        if(i === sSel) document.getElementById('live-counter').innerText = "";
+                        if(i === sSel) {
+                            document.getElementById('live-counter').innerText = "";
+                            document.getElementById('status-txt').innerText = "";
+                        }
                         save(); 
                     }, 3000);
                 }
                 change = true;
             } else if(i === sSel) {
-                // DESACELERACIÓN MAS LENTA Y REAL (Exponente 3.5 para frenado cinematográfico)
                 let duration = 60000;
                 let elapsed = duration - timeLeft;
                 let progress = Math.min(1, elapsed / duration);
                 let speed = 0.5 * Math.pow(1 - progress, 3.5);
                 
                 ang += speed; 
-                
                 const ptr = document.getElementById('pointer');
-                // MOVIMIENTO DE FLECHA NATURAL: Un solo eje de oscilación suave
                 if (speed > 0.00001) {
                     let hitFrequency = Math.sin(ang * 200); 
                     ptr.style.transform = `translateY(-50%) rotate(${hitFrequency * 10 * (1-progress)}deg)`;
                 } else {
                     ptr.style.transform = `translateY(-50%) rotate(0deg)`;
                 }
-                
                 draw(); 
                 document.getElementById('live-counter').innerText = `SORTEANDO: ${getWinningNumber()}`;
             }
@@ -303,6 +303,9 @@ function setSala(i) {
     localStorage.setItem('GCT_S_SEL', i); 
     mySelection = []; 
     document.getElementById('sala-txt').innerText = `SALA #${salas[i]?.id || (i+1)}`; 
+    // LIMPIAR TEXTOS DE SORTEO AL CAMBIAR DE SALA
+    document.getElementById('live-counter').innerText = "";
+    document.getElementById('status-txt').innerText = "";
     renderGrid(); 
     renderNumbers(); 
 }
@@ -336,8 +339,8 @@ function openM(t) {
     else if(t==='recover') { c.innerHTML = `<h3>RECUPERAR</h3><p style="font-size:11px;">Ingresa tu correo para solicitar asistencia</p><input id="rec-u" placeholder="Tu correo"><button onclick="requestPass()" style="width:100%">ENVIAR SOLICITUD</button>`; }
     else if(t==='dep') { c.innerHTML = `<h3>RECARGAR</h3><p style="font-size:10px; color:var(--primary);">Mínimo de depósito: $5.00 USD</p><div class="wallet-box">TRC20: <b>TFtX2tLdjqTnTdVAUfQ8YNACv6QUAK9LAy</b></div><input id="dep-amt" type="number" placeholder="Monto $"><div class="upload-box" onclick="document.getElementById('f-in').click()">+ COMPROBANTE<input type="file" id="f-in" hidden onchange="previewFile()"><img id="preview-img"></div><button onclick="notificarPago()" style="width:100%">ENVIAR</button>`; }
     else if(t==='with') { c.innerHTML = `<h3>RETIRAR</h3><p style="font-size:10px; color:var(--red);">Mínimo de retiro: $10.00 USD</p><input id="wi-amt" type="number" placeholder="Monto $"><input id="wi-wallet" placeholder="Tu Billetera TRC20"><button onclick="solicitarRetiro()" style="width:100%; background:var(--red); color:#fff;">SOLICITAR RETIRO</button>`; }
-    else if(t==='faq') { c.innerHTML = `<h3>PREGUNTAS FRECUENTES</h3><div style="text-align:left; font-size:12px;"><b>¿Qué es GLOBAL CASH TIME?</b><p>Es una plataforma de sorteos en tiempo real donde puedes adquirir números del 1 al 200 en diferentes salas.</p></div>`; }
-    else if(t==='nosotros') { c.innerHTML = `<h3>NOSOTROS</h3><div style="text-align:left; font-size:12px;"><p>Sistema de gestión de sorteos automatizado para transparencia global.</p></div>`; }
+    else if(t==='faq') { c.innerHTML = `<h3>PREGUNTAS FRECUENTES</h3><div style="text-align:left; font-size:12px;"><b>¿Qué es GLOBAL CASH TIME?</b><p>Plataforma de sorteos en tiempo real con 3 premios por sala.</p></div>`; }
+    else if(t==='nosotros') { c.innerHTML = `<h3>NOSOTROS</h3><div style="text-align:left; font-size:12px;"><p>Transparencia y rapidez en cada sorteo global.</p></div>`; }
     else if(t==='contacto') { c.innerHTML = `<h3>CONTACTO</h3><div style="font-size:14px; margin:20px 0;">📧 globalcashtime@gmail.com</div>`; }
     else if(t==='hist') { 
         let displayHist = historial.filter(h => h.u === currentU?.u || h.sala === (salas[sSel]?.id || sSel+1) || (currentU && currentU.u === 'ADMIN_GLOBAL')); 
@@ -369,9 +372,9 @@ function updateStatus() {
     let s = salas[sSel], st = document.getElementById('status-txt'); if(!s) return;
     if(s.isSpinning) st.innerText = `GIRO ${s.currentGiro} EN PROGRESO...`; 
     else if(s.isWaiting) st.innerText = s.lastWinner ? `GANADOR: #${s.lastWinner}` : "";
-    else st.innerText = ""; 
+    // NO PONER NADA SI NO HAY SORTEO ACTIVO
 }
-function showProfile() { document.getElementById('guest-btn').style.display='none'; document.getElementById('user-profile').style.display='block'; document.getElementById('prof-name').innerText = currentU.u; updateUI(); }
+function showProfile() { document.getElementById('guest-btn').style.display='none'; document.getElementById('user-profile').style.display='block'; document.getElementById('prof-name').innerText = currentU.u; }
 function updateUI() { if(currentU && currentU.u !== "ADMIN_GLOBAL") document.getElementById('prof-balance').innerText = `$${currentU.b.toFixed(2)}`; }
 function logout() { localStorage.removeItem('GCT_SESSION'); location.reload(); }
 function closeM() { document.getElementById('modal').style.display='none'; tempImg=""; }
@@ -470,7 +473,5 @@ function rechazarWith(idx) {
 }
 </script>
 
-<div style="font-size: 8px; color: #111; text-align: center; margin: 10px;">Todos los derechos reservados.</div>
 </body>
 </html>
-
