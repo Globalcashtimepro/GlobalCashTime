@@ -135,25 +135,6 @@
 
 <div id="modal" class="modal"><div id="modal-content" class="section-box" style="width:90%; max-width:380px;"></div></div>
 
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyCntjKiPwfoCq0MzHIkybX4VZuYE_ZCnOE",
-    authDomain: "globalcash-6fbe8.firebaseapp.com",
-    databaseURL: "https://globalcash-6fbe8-default-rtdb.firebaseio.com",
-    projectId: "globalcash-6fbe8",
-    storageBucket: "globalcash-6fbe8.firebasestorage.app",
-    messagingSenderId: "476476155798",
-    appId: "1:476476155798:web:947a0e0140acfca78d5fb7",
-    measurementId: "G-4L6LQ3ZL7S"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
-</script>
-
 <script>
 let users = JSON.parse(localStorage.getItem('GCT_MASTER_DB')) || [];
 let currentU = null, ang = 0, sSel = parseInt(localStorage.getItem('GCT_S_SEL')) || 0, mySelection = [], tempImg = "";
@@ -197,7 +178,7 @@ function logic() {
     salas.forEach((s, i) => {
         if(s.isSpinning) {
             let timeLeft = s.endTime - now;
-            let totalSpinTime = 60000; 
+            let totalSpinTime = 60000; // 1 MINUTO EXACTO
             let elapsed = totalSpinTime - timeLeft;
             if(timeLeft <= 0) {
                 s.isSpinning = false; s.isWaiting = true; s.endTime = now + 5000;
@@ -218,9 +199,10 @@ function logic() {
                 change = true;
             } else if(i === sSel) {
                 let speed = 0.45; 
-                if (elapsed > 35000) { 
-                    let decelProgress = (elapsed - 35000) / 25000; 
-                    speed = Math.max(0.0008, 0.45 * Math.pow(1 - decelProgress, 3.5)); 
+                // DESACELERACIÓN ULTRA LENTA (Inicia suavemente desde los 40 seg de transcurrido)
+                if (elapsed > 40000) { 
+                    let decelProgress = (elapsed - 40000) / 20000; 
+                    speed = Math.max(0.001, 0.45 * Math.pow(1 - decelProgress, 4)); 
                 }
                 ang += speed; draw(); 
                 document.getElementById('live-counter').innerText = `SORTEANDO: ${getWinningNumber()}`;
@@ -387,4 +369,4 @@ function rechazarWith(idx) { let w = pendingWiths[idx]; let u = users.find(x => 
 
 <div style="font-size: 8px; color: #111; text-align: center; margin: 10px;">Todos los derechos reservados.</div>
 </body>
-                </html>
+</html>
