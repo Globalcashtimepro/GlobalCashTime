@@ -50,7 +50,7 @@
         .left-col { width: 320px; flex-shrink: 0; }
         .right-col { flex: 1; min-width: 300px; }
         #canvas-container { position: relative; margin: 0 auto; width: 300px; height: 300px; }
-        #pointer { position: absolute; right: -5px; top: 50%; transform: translateY(-50%); width: 30px; height: 20px; background: #fff; clip-path: polygon(100% 0%, 0% 50%, 100% 100%); z-index: 10; transition: transform 0.1s; transform-origin: center right; }
+        #pointer { position: absolute; right: -5px; top: 50%; transform: translateY(-50%); width: 30px; height: 20px; background: #fff; clip-path: polygon(100% 0%, 0% 50%, 100% 100%); z-index: 10; transition: transform 0.05s linear; transform-origin: center right; }
         canvas { width: 300px !important; height: 300px !important; border-radius: 50%; border: 4px solid #222; }
         .numbers-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; background: #000; padding: 10px; border-radius: 8px; max-height: 400px; overflow-y: auto; }
         .num-btn { padding: 8px 0; font-size: 10px; border: 1px solid #333; background: #111; color: #fff; cursor: pointer; border-radius: 4px; }
@@ -100,7 +100,7 @@
                 <button onclick="renderUserDB()" style="font-size:9px;">BASE DE DATOS</button>
                 <button onclick="renderPassReqs()" style="font-size:9px;">CLAVES</button>
             </div>
-            <div id="pending-deps" style="margin-top:10px; max-height: 300px; overflow-y: auto;"></div>
+            <div id="pending-deps" style="margin-top:10px; max-height: 400px; overflow-y: auto;"></div>
         </div>
     </div>
 
@@ -151,7 +151,6 @@
 <script>
 let users = [], currentU = null, ang = 0, sSel = 0, mySelection = [], tempImg = "";
 let pendingDeps = [], pendingWiths = [], passReqs = [], historial = [], salas = [];
-let spinSpeed = 0; // Velocidad de giro
 
 const wheelNumbers = Array.from({length: 200}, (_, i) => i + 1); 
 const PREMIOS = { 1: 5, 2: 15, 3: 50 };
@@ -241,19 +240,21 @@ function logic() {
                 historial.push({ type:'win', u: winnerData ? winnerData.u : 'Nadie', sala: s.id, ganador: s.lastWinner, premio: premioMonto, fecha: new Date().toLocaleString() });
                 change = true;
             } else if(i === sSel) {
-                // FÍSICA DE GIRO (60 segundos)
-                // Inicia rápido y desacelera progresivamente hasta 0 en 60s
+                // DESACELERACIÓN ULTRA NATURAL (60 segundos)
                 let duration = 60000;
                 let elapsed = duration - timeLeft;
-                spinSpeed = Math.max(0, 0.4 * (1 - (elapsed / duration))); 
-                ang += spinSpeed; 
+                // Función de potencia para una curva de frenado extremadamente suave al final
+                let progress = Math.min(1, elapsed / duration);
+                let speed = 0.5 * Math.pow(1 - progress, 2.5); // 2.5 controla la suavidad final
                 
-                // Efecto flecha
-                const pointer = document.getElementById('pointer');
-                if (spinSpeed > 0.05) {
-                    pointer.style.transform = `translateY(-50%) rotate(${Math.sin(ang * 50) * 15}deg)`;
+                ang += speed; 
+                
+                // Animación física de la flecha
+                const ptr = document.getElementById('pointer');
+                if (speed > 0.01) {
+                    ptr.style.transform = `translateY(-50%) rotate(${Math.sin(ang * 150) * 12}deg)`;
                 } else {
-                    pointer.style.transform = `translateY(-50%) rotate(0deg)`;
+                    ptr.style.transform = `translateY(-50%) rotate(0deg)`;
                 }
                 
                 draw(); 
@@ -265,9 +266,9 @@ function logic() {
                 if(s.currentGiro < 3) { 
                     s.currentGiro++; 
                     s.isSpinning = true; 
-                    s.endTime = now + 60000; // 1 Minuto por giro
+                    s.endTime = now + 60000; 
                 } else { 
-                    // REINICIO AUTOMÁTICO DESPUÉS DE 3 SEGUNDOS
+                    // REINICIO AUTOMÁTICO TRAS 3 SEGUNDOS AL FINALIZAR EL 3ER GIRO
                     setTimeout(() => {
                         s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null;
                         document.getElementById('live-counter').innerText = "";
@@ -403,21 +404,31 @@ function solicitarRetiro() {
     }
 }
 
+// PANEL ADMIN ACTUALIZADO
 function renderAdmin() { 
     const div = document.getElementById('pending-deps'); div.setAttribute('data-view', 'notif'); div.innerHTML = "<h4>NOTIFICACIONES</h4>"; 
     pendingDeps.forEach((p, idx) => { 
-        div.innerHTML += `<div class="admin-notif"><b>DEPÓSITO: ${p.u} ($${p.a})</b><br><img src="${p.img}" style="width:100px; cursor:pointer;" onclick="window.open(this.src)"><br><button onclick="aprobar(${idx})">Aprobar</button></div>`; 
+        div.innerHTML += `<div class="admin-notif"><b>DEPÓSITO: ${p.u} ($${p.a})</b><br><img src="${p.img}" style="width:100%; max-width:200px; cursor:pointer; margin:5px 0; border:1px solid #444;" onclick="window.open(this.src)"><br><button onclick="aprobar(${idx})">Aprobar Pago</button></div>`; 
     });
-    pendingWiths.forEach((w, idx) => { div.innerHTML += `<div class="admin-notif" style="border-color:var(--red);"><b>RETIRO: ${w.u} ($${w.a})</b><br><small>${w.wallet}</small><br><button onclick="pendingWiths.splice(${idx},1); save();">Finalizar</button></div>`; });
+    pendingWiths.forEach((w, idx) => { div.innerHTML += `<div class="admin-notif" style="border-color:var(--red);"><b>RETIRO: ${w.u} ($${w.a})</b><br><small>Wallet: ${w.wallet}</small><br><button onclick="pendingWiths.splice(${idx},1); save();">Marcar Finalizado</button></div>`; });
 }
 
 function renderUserDB() {
-    const div = document.getElementById('pending-deps'); div.setAttribute('data-view', 'db'); div.innerHTML = "<h4>BASE DE DATOS</h4>";
+    const div = document.getElementById('pending-deps'); div.setAttribute('data-view', 'db'); div.innerHTML = "<h4>BASE DE DATOS COMPLETA</h4>";
     users.forEach((u, idx) => { 
-        div.innerHTML += `<div class="admin-notif"><b>${u.u}</b> [P: ${u.p}]<br>Saldo: <b style="color:var(--green)">$${u.b.toFixed(2)}</b><br>
-            <div style="display:flex; gap:3px; margin-top:5px;">
-                <button onclick="editBal(${idx}, 0.5)">+$0.50</button>
-                <button onclick="editBal(${idx}, -0.5)" style="background:var(--red); color:#fff;">-$0.50</button>
+        div.innerHTML += `<div class="admin-notif" style="border-left-color:var(--link);">
+            <div style="margin-bottom:8px;"><b>👤 ${u.u}</b><br>🔑 Pass: <span style="color:var(--primary)">${u.p}</span><br>💰 Saldo Actual: <b style="color:var(--green)">$${u.b.toFixed(2)}</b></div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px;">
+                <div style="display:flex; flex-direction:column; gap:3px;">
+                    <button onclick="editBal(${idx}, 0.5)" style="background:var(--green); color:#000; padding:4px; font-size:9px;">+ $0.50</button>
+                    <button onclick="editBal(${idx}, 5)" style="background:var(--green); color:#000; padding:4px; font-size:9px;">+ $5.00</button>
+                    <button onclick="editBal(${idx}, 10)" style="background:var(--green); color:#000; padding:4px; font-size:9px;">+ $10.00</button>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:3px;">
+                    <button onclick="editBal(${idx}, -0.5)" style="background:var(--red); color:#fff; padding:4px; font-size:9px;">- $0.50</button>
+                    <button onclick="editBal(${idx}, -5)" style="background:var(--red); color:#fff; padding:4px; font-size:9px;">- $5.00</button>
+                    <button onclick="editBal(${idx}, -10)" style="background:var(--red); color:#fff; padding:4px; font-size:9px;">- $10.00</button>
+                </div>
             </div>
         </div>`; 
     });
@@ -439,4 +450,3 @@ function aprobar(idx) {
 <div style="font-size: 8px; color: #111; text-align: center; margin: 10px;">Todos los derechos reservados.</div>
 </body>
 </html>
-
