@@ -5,63 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>GLOBAL CASH TIME | Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-
-        // Tu configuración de Firebase
-        const firebaseConfig = {
-            apiKey: "AIzaSyCntjKiPwfoCq0MzHIkybX4VZuYE_ZCnOE",
-            authDomain: "globalcash-6fbe8.firebaseapp.com",
-            databaseURL: "https://globalcash-6fbe8-default-rtdb.firebaseio.com",
-            projectId: "globalcash-6fbe8",
-            storageBucket: "globalcash-6fbe8.firebasestorage.app",
-            messagingSenderId: "476476155798",
-            appId: "1:476476155798:web:947a0e0140acfca78d5fb7",
-            measurementId: "G-4L6LQ3ZL7S"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
-        const gctRef = ref(db, 'GCT_SYSTEM');
-
-        // Sincronización en tiempo real desde la nube
-        onValue(gctRef, (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                users = data.users || [];
-                salas = data.salas || salas;
-                pendingDeps = data.pendingDeps || [];
-                pendingWiths = data.pendingWiths || [];
-                passReqs = data.passReqs || [];
-                historial = data.historial || [];
-                
-                // Actualizar usuario actual si está logueado
-                if(currentU && currentU.u !== "ADMIN_GLOBAL") {
-                    let liveU = users.find(x => x.u === currentU.u);
-                    if(liveU) currentU = liveU;
-                }
-                
-                renderGrid();
-                renderNumbers();
-                updateUI();
-            }
-        });
-
-        // Reemplazo de la función save para que escriba en Firebase
-        window.save = function() {
-            set(gctRef, {
-                users: users,
-                salas: salas,
-                pendingDeps: pendingDeps,
-                pendingWiths: pendingWiths,
-                passReqs: passReqs,
-                historial: historial
-            });
-        };
-    </script>
-
     <style>
         :root { --primary: #ffea00; --primary-dark: #ccac00; --bg: #050505; --card: #121212; --text: #ffffff; --green: #00ff66; --red: #ff3333; --link: #88ccff; }
         body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; overflow-x: hidden; position: relative; min-height: 100vh; }
@@ -193,13 +136,13 @@
 <div id="modal" class="modal"><div id="modal-content" class="section-box" style="width:90%; max-width:380px;"></div></div>
 
 <script>
-let users = [];
+let users = JSON.parse(localStorage.getItem('GCT_MASTER_DB')) || [];
 let currentU = null, ang = 0, sSel = parseInt(localStorage.getItem('GCT_S_SEL')) || 0, mySelection = [], tempImg = "";
-let pendingDeps = [];
-let pendingWiths = [];
-let passReqs = [];
-let historial = [];
-let salas = Array.from({length: 20}, (_, i) => ({ 
+let pendingDeps = JSON.parse(localStorage.getItem('GCT_PENDING')) || [];
+let pendingWiths = JSON.parse(localStorage.getItem('GCT_PENDING_WITH')) || [];
+let passReqs = JSON.parse(localStorage.getItem('GCT_PASS_REQ')) || [];
+let historial = JSON.parse(localStorage.getItem('GCT_HIST')) || [];
+let salas = JSON.parse(localStorage.getItem('GCT_SALAS_20')) || Array.from({length: 20}, (_, i) => ({ 
     id: i+1, count: 0, sold: [], isSpinning: false, isWaiting: false, currentGiro: 0, endTime: 0, lastWinner: null 
 }));
 
@@ -210,17 +153,9 @@ window.onload = () => {
     createRain();
     const saved = localStorage.getItem('GCT_SESSION');
     if(saved) {
-        if(saved === "ADMIN_GLOBAL") { 
-            currentU = {u:"ADMIN_GLOBAL", b:0}; 
-            document.getElementById('admin-panel').style.display='block'; 
-            renderAdmin(); 
-        } else {
-            // Buscaremos el usuario en el array sincronizado por Firebase
-            setTimeout(() => {
-                currentU = users.find(x => x.u === saved);
-                if(currentU) showProfile();
-            }, 1000);
-        }
+        if(saved === "ADMIN_GLOBAL") { currentU = {u:"ADMIN_GLOBAL", b:0}; document.getElementById('admin-panel').style.display='block'; renderAdmin(); }
+        else { currentU = users.find(x => x.u === saved); }
+        if(currentU) showProfile();
     }
     setSala(sSel); renderGrid(); renderNumbers(); draw(); setInterval(logic, 30);
 };
@@ -243,7 +178,7 @@ function logic() {
     salas.forEach((s, i) => {
         if(s.isSpinning) {
             let timeLeft = s.endTime - now;
-            let totalSpinTime = 15000; // Ajustado a 15s según historial
+            let totalSpinTime = 15000;
             let elapsed = totalSpinTime - timeLeft;
             if(timeLeft <= 0) {
                 s.isSpinning = false; s.isWaiting = true; s.endTime = now + 5000;
@@ -362,6 +297,7 @@ function updateStatus() {
     else st.innerText = ""; 
 }
 
+function save() { localStorage.setItem('GCT_SALAS_20', JSON.stringify(salas)); localStorage.setItem('GCT_MASTER_DB', JSON.stringify(users)); localStorage.setItem('GCT_HIST', JSON.stringify(historial)); localStorage.setItem('GCT_PENDING', JSON.stringify(pendingDeps)); localStorage.setItem('GCT_PENDING_WITH', JSON.stringify(pendingWiths)); localStorage.setItem('GCT_PASS_REQ', JSON.stringify(passReqs)); }
 function showProfile() { document.getElementById('guest-btn').style.display='none'; document.getElementById('user-profile').style.display='block'; document.getElementById('prof-name').innerText = currentU.u; updateUI(); }
 function updateUI() { if(currentU && currentU.u !== "ADMIN_GLOBAL") document.getElementById('prof-balance').innerText = `$${currentU.b.toFixed(2)}`; }
 function logout() { localStorage.removeItem('GCT_SESSION'); location.reload(); }
@@ -433,4 +369,3 @@ function rechazarWith(idx) { let w = pendingWiths[idx]; let u = users.find(x => 
 <div style="font-size: 8px; color: #111; text-align: center; margin: 10px;">Todos los derechos reservados.</div>
 </body>
 </html>
-
