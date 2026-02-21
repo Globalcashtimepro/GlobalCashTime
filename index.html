@@ -178,7 +178,7 @@ function logic() {
     salas.forEach((s, i) => {
         if(s.isSpinning) {
             let timeLeft = s.endTime - now;
-            let totalSpinTime = 15000;
+            let totalSpinTime = 60000; 
             let elapsed = totalSpinTime - timeLeft;
             if(timeLeft <= 0) {
                 s.isSpinning = false; s.isWaiting = true; s.endTime = now + 5000;
@@ -189,7 +189,7 @@ function logic() {
                     let winUser = users.find(u => u.u === winnerData.u);
                     if(winUser) { winUser.b += premioMonto; winUser.part = (winUser.part || 0) + 1; }
                 }
-                historial.push({ u: winnerData ? winnerData.u : 'Nadie', sala: s.id, ganador: s.lastWinner, premio: premioMonto, fecha: new Date().toLocaleString() });
+                historial.push({ type:'win', u: winnerData ? winnerData.u : 'Nadie', sala: s.id, ganador: s.lastWinner, premio: premioMonto, fecha: new Date().toLocaleString() });
                 if(i === sSel) { 
                     confetti({ particleCount: 100, spread: 70, origin: { x: 0.1, y: 0.5 } });
                     confetti({ particleCount: 100, spread: 70, origin: { x: 0.9, y: 0.5 } });
@@ -199,8 +199,8 @@ function logic() {
                 change = true;
             } else if(i === sSel) {
                 let speed = 0.45; 
-                if (elapsed > 10000) { 
-                    let decelProgress = (elapsed - 10000) / 5000; 
+                if (elapsed > 40000) { 
+                    let decelProgress = (elapsed - 40000) / 20000; 
                     speed = Math.max(0.001, 0.45 * Math.pow(1 - decelProgress, 4)); 
                 }
                 ang += speed; draw(); 
@@ -209,7 +209,7 @@ function logic() {
         } else if(s.isWaiting) {
             if(now >= s.endTime) {
                 s.isWaiting = false;
-                if(s.currentGiro < 3) { s.currentGiro++; s.isSpinning = true; s.endTime = now + 15000; }
+                if(s.currentGiro < 3) { s.currentGiro++; s.isSpinning = true; s.endTime = now + 60000; }
                 else { 
                     setTimeout(() => { s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; save(); renderGrid(); renderNumbers(); }, 5000); 
                 }
@@ -248,9 +248,13 @@ function comprarSeleccion() {
     let s = salas[sSel], cost = mySelection.length * 0.5; 
     if(cost > 0 && currentU.b >= cost) { 
         currentU.b -= cost; currentU.part = (currentU.part || 0) + mySelection.length;
+        
+        // REGISTRO DE COMPRA EN HISTORIAL PARA QUE OTROS LO VEAN
+        historial.push({ type:'buy', u: currentU.u, sala: s.id, nums: [...mySelection], fecha: new Date().toLocaleString() });
+
         mySelection.forEach(num => s.sold.push({n: num, u: currentU.u}));
         s.count = s.sold.length; mySelection = []; 
-        if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.endTime = Date.now() + 15000; } 
+        if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.endTime = Date.now() + 60000; } 
         save(); renderGrid(); renderNumbers(); updateUI(); 
     } 
 }
@@ -269,10 +273,19 @@ function openM(t) {
     else if(t==='recover') { c.innerHTML = `<h3>RECUPERAR</h3><input id="rec-u" placeholder="Tu correo"><button onclick="requestPass()" style="width:100%">SOLICITAR RECUPERACIÓN</button>`; }
     else if(t==='dep') { c.innerHTML = `<h3>RECARGAR</h3><p style="font-size:10px; color:var(--primary);">Mínimo de depósito: $5.00 USD</p><div class="wallet-box">TRC20: <b>TFtX2tLdjqTnTdVAUfQ8YNACv6QUAK9LAy</b></div><input id="dep-amt" type="number" placeholder="Monto $"><div class="upload-box" onclick="document.getElementById('f-in').click()">+ COMPROBANTE<input type="file" id="f-in" hidden onchange="previewFile()"><img id="preview-img"></div><button onclick="notificarPago()" style="width:100%">ENVIAR</button>`; }
     else if(t==='with') { c.innerHTML = `<h3>RETIRAR</h3><p style="font-size:10px; color:var(--red);">Mínimo de retiro: $10.00 USD</p><input id="wi-amt" type="number" placeholder="Monto $"><input id="wi-wallet" placeholder="Tu Billetera TRC20"><button onclick="solicitarRetiro()" style="width:100%; background:var(--red); color:#fff;">SOLICITAR RETIRO</button>`; }
-    else if(t==='hist') { let myHist = historial.filter(h => h.u === currentU.u || currentU.u === 'ADMIN_GLOBAL'); c.innerHTML = `<h3>HISTORIAL</h3><div style="max-height:200px; overflow-y:auto; font-size:11px;">` + myHist.map(h => `<div style="border-bottom:1px solid #333; padding:5px;">${h.sala ? `SALA ${h.sala} - GANASTE $${h.premio} (Nº${h.ganador})` : h.msg} <br><small>${h.fecha}</small></div>`).join('') + `</div>`; }
+    else if(t==='hist') { 
+        // FILTRADO: Ver mis movimientos O compras de la sala actual
+        let displayHist = historial.filter(h => h.u === currentU.u || h.sala === salas[sSel].id || currentU.u === 'ADMIN_GLOBAL'); 
+        c.innerHTML = `<h3>HISTORIAL SALA #${salas[sSel].id}</h3><div style="max-height:250px; overflow-y:auto; font-size:11px; text-align:left;">` + 
+        displayHist.reverse().map(h => {
+            let msg = "";
+            if(h.type === 'buy') msg = `<b style="color:var(--primary)">${h.u}</b> compró: [${h.nums.join(', ')}]`;
+            else if(h.type === 'win') msg = `<b style="color:var(--green)">GANADOR: ${h.u}</b> (Nº${h.ganador}) - $${h.premio}`;
+            else msg = h.msg || "";
+            return `<div style="border-bottom:1px solid #333; padding:8px 5px;">${msg}<br><small style="opacity:0.6;">${h.fecha}</small></div>`;
+        }).join('') + `</div>`; 
+    }
     else if(t==='faq') { c.innerHTML = `<h3>FAQ</h3><div style="text-align:left; font-size:11px; max-height:300px; overflow-y:auto;"><b>¿Cómo funciona?</b><br>Compra números ($0.50 c/u). Cuando se llenan los 200 cupos, la ruleta gira 3 veces.<br><br><b>¿Premios?</b><br>1er Giro: $5 | 2do Giro: $15 | 3er Giro: $50.<br><br><b>¿Retiro Mínimo?</b><br>$10 USD vía USDT TRC20.<br><b>¿Depósito Mínimo?</b><br>$5 USD vía USDT TRC20.</div>`; }
-    else if(t==='nosotros') { c.innerHTML = `<h3>NOSOTROS</h3><p style="font-size:11px;">GLOBAL CASH TIME es la plataforma de ruleta de sorteos por participación más rápida y transparente desde 2026.</p>`; }
-    else if(t==='contacto') { c.innerHTML = `<h3>CONTACTO</h3><p style="font-size:12px;">Escríbenos a:<br><b>globalcashtime@gmail.com</b></p>`; }
     c.innerHTML += `<button onclick="closeM()" style="background:#444; margin-top:10px; width:100%;">CERRAR</button>`; 
 }
 
@@ -369,3 +382,4 @@ function rechazarWith(idx) { let w = pendingWiths[idx]; let u = users.find(x => 
 <div style="font-size: 8px; color: #111; text-align: center; margin: 10px;">Todos los derechos reservados.</div>
 </body>
 </html>
+
