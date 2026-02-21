@@ -50,7 +50,7 @@
         .left-col { width: 320px; flex-shrink: 0; }
         .right-col { flex: 1; min-width: 300px; }
         #canvas-container { position: relative; margin: 0 auto; width: 300px; height: 300px; }
-        #pointer { position: absolute; right: -5px; top: 50%; transform: translateY(-50%); width: 30px; height: 20px; background: #fff; clip-path: polygon(100% 0%, 0% 50%, 100% 100%); z-index: 10; transition: transform 0.05s linear; transform-origin: center right; }
+        #pointer { position: absolute; right: -5px; top: 50%; transform: translateY(-50%); width: 30px; height: 20px; background: #fff; clip-path: polygon(100% 0%, 0% 50%, 100% 100%); z-index: 10; transition: transform 0.1s ease-out; transform-origin: center right; }
         canvas { width: 300px !important; height: 300px !important; border-radius: 50%; border: 4px solid #222; }
         .numbers-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; background: #000; padding: 10px; border-radius: 8px; max-height: 400px; overflow-y: auto; }
         .num-btn { padding: 8px 0; font-size: 10px; border: 1px solid #333; background: #111; color: #fff; cursor: pointer; border-radius: 4px; }
@@ -239,27 +239,29 @@ function logic() {
                 }
                 historial.push({ type:'win', u: winnerData ? winnerData.u : 'Nadie', sala: s.id, ganador: s.lastWinner, premio: premioMonto, fecha: new Date().toLocaleString() });
                 
-                // REINICIO AUTOMÁTICO SI ES EL ÚLTIMO GIRO (Giro 3)
                 if(s.currentGiro === 3) {
                     setTimeout(() => {
-                        s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; s.isWaiting = false;
+                        // REINICIO FORZADO DIRECTO EN LA INSTANCIA PARA SALAS 1 Y 2
+                        s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; s.isWaiting = false; s.isSpinning = false;
                         if(i === sSel) document.getElementById('live-counter').innerText = "";
-                        save(); // Guardado directo en FB para reflejar a todos sin refrescar
+                        save(); 
                     }, 3000);
                 }
                 change = true;
             } else if(i === sSel) {
+                // DESACELERACIÓN MAS LENTA Y REAL (Exponente 3.5 para frenado cinematográfico)
                 let duration = 60000;
                 let elapsed = duration - timeLeft;
                 let progress = Math.min(1, elapsed / duration);
-                let speed = 0.5 * Math.pow(1 - progress, 2.5);
+                let speed = 0.5 * Math.pow(1 - progress, 3.5);
                 
                 ang += speed; 
                 
                 const ptr = document.getElementById('pointer');
-                // Flecha se mueve SIEMPRE mientras haya velocidad mínima
-                if (speed > 0.0001) {
-                    ptr.style.transform = `translateY(-50%) rotate(${Math.sin(ang * 180) * 12}deg)`;
+                // MOVIMIENTO DE FLECHA NATURAL: Un solo eje de oscilación suave
+                if (speed > 0.00001) {
+                    let hitFrequency = Math.sin(ang * 200); 
+                    ptr.style.transform = `translateY(-50%) rotate(${hitFrequency * 10 * (1-progress)}deg)`;
                 } else {
                     ptr.style.transform = `translateY(-50%) rotate(0deg)`;
                 }
@@ -334,8 +336,8 @@ function openM(t) {
     else if(t==='recover') { c.innerHTML = `<h3>RECUPERAR</h3><p style="font-size:11px;">Ingresa tu correo para solicitar asistencia</p><input id="rec-u" placeholder="Tu correo"><button onclick="requestPass()" style="width:100%">ENVIAR SOLICITUD</button>`; }
     else if(t==='dep') { c.innerHTML = `<h3>RECARGAR</h3><p style="font-size:10px; color:var(--primary);">Mínimo de depósito: $5.00 USD</p><div class="wallet-box">TRC20: <b>TFtX2tLdjqTnTdVAUfQ8YNACv6QUAK9LAy</b></div><input id="dep-amt" type="number" placeholder="Monto $"><div class="upload-box" onclick="document.getElementById('f-in').click()">+ COMPROBANTE<input type="file" id="f-in" hidden onchange="previewFile()"><img id="preview-img"></div><button onclick="notificarPago()" style="width:100%">ENVIAR</button>`; }
     else if(t==='with') { c.innerHTML = `<h3>RETIRAR</h3><p style="font-size:10px; color:var(--red);">Mínimo de retiro: $10.00 USD</p><input id="wi-amt" type="number" placeholder="Monto $"><input id="wi-wallet" placeholder="Tu Billetera TRC20"><button onclick="solicitarRetiro()" style="width:100%; background:var(--red); color:#fff;">SOLICITAR RETIRO</button>`; }
-    else if(t==='faq') { c.innerHTML = `<h3>PREGUNTAS FRECUENTES</h3><div style="text-align:left; font-size:12px;"><b>¿Qué es GLOBAL CASH TIME?</b><p>Es una plataforma de sorteos en tiempo real donde puedes adquirir números del 1 al 200 en diferentes salas. Cada sala reparte 3 premios automáticos al completarse los cupos.</p></div>`; }
-    else if(t==='nosotros') { c.innerHTML = `<h3>NOSOTROS</h3><div style="text-align:left; font-size:12px;"><p>Somos un sistema de gestión de sorteos automatizado diseñado para brindar transparencia y rapidez.</p></div>`; }
+    else if(t==='faq') { c.innerHTML = `<h3>PREGUNTAS FRECUENTES</h3><div style="text-align:left; font-size:12px;"><b>¿Qué es GLOBAL CASH TIME?</b><p>Es una plataforma de sorteos en tiempo real donde puedes adquirir números del 1 al 200 en diferentes salas.</p></div>`; }
+    else if(t==='nosotros') { c.innerHTML = `<h3>NOSOTROS</h3><div style="text-align:left; font-size:12px;"><p>Sistema de gestión de sorteos automatizado para transparencia global.</p></div>`; }
     else if(t==='contacto') { c.innerHTML = `<h3>CONTACTO</h3><div style="font-size:14px; margin:20px 0;">📧 globalcashtime@gmail.com</div>`; }
     else if(t==='hist') { 
         let displayHist = historial.filter(h => h.u === currentU?.u || h.sala === (salas[sSel]?.id || sSel+1) || (currentU && currentU.u === 'ADMIN_GLOBAL')); 
@@ -391,7 +393,7 @@ function requestPass() {
     let u = document.getElementById('rec-u').value;
     if(u) {
         passReqs.push({ u: u, info: "Solicitud de recuperación de clave", fecha: new Date().toLocaleString() });
-        save(); alert("Solicitud enviada"); closeM();
+        save(); alert("ENVIADO"); closeM();
     }
 }
 
@@ -463,7 +465,7 @@ function rechazarDep(idx) { pendingDeps.splice(idx, 1); save(); }
 function aprobarWith(idx) { pendingWiths.splice(idx, 1); save(); }
 function rechazarWith(idx) {
     let w = pendingWiths[idx]; let u = users.find(x => x.u === w.u);
-    if(u) u.b += w.a; // Devolver dinero si se rechaza retiro
+    if(u) u.b += w.a; 
     pendingWiths.splice(idx, 1); save();
 }
 </script>
@@ -471,3 +473,4 @@ function rechazarWith(idx) {
 <div style="font-size: 8px; color: #111; text-align: center; margin: 10px;">Todos los derechos reservados.</div>
 </body>
 </html>
+
