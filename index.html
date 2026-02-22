@@ -99,6 +99,7 @@
                 <button onclick="renderAdmin()" style="font-size:9px;">NOTIFICACIONES</button>
                 <button onclick="renderUserDB()" style="font-size:9px;">BASE DE DATOS</button>
                 <button onclick="renderPassReqs()" style="font-size:9px;">CLAVES</button>
+                <button onclick="resetSalasManual()" style="font-size:9px; background:red; color:white;">RESET TODAS SALAS</button>
             </div>
             <div id="pending-deps" style="margin-top:10px; max-height: 400px; overflow-y: auto;"></div>
         </div>
@@ -181,6 +182,16 @@ function initApp() {
             salas = dbSalas;
         }
 
+        // AUTO-RESET INMEDIATO SI ALGUNA SALA QUEDÓ TRABADA EN GIRO 3
+        let resetRequired = false;
+        salas.forEach(s => {
+            if(s.currentGiro >= 3 && !s.isSpinning && !s.isWaiting && s.count > 0) {
+                s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null;
+                resetRequired = true;
+            }
+        });
+        if(resetRequired) save();
+
         const saved = localStorage.getItem('GCT_SESSION');
         if(saved) {
             if(saved === "ADMIN_GLOBAL") { currentU = {u:"ADMIN_GLOBAL", b:0}; document.getElementById('admin-panel').style.display='block'; }
@@ -193,14 +204,6 @@ function initApp() {
         renderNumbers();
         document.getElementById('sala-txt').innerText = `SALA #${salas[sSel]?.id || (sSel+1)}`;
         updateUI();
-
-        const adminDiv = document.getElementById('pending-deps');
-        if(adminDiv && adminDiv.innerHTML !== "") {
-            const view = adminDiv.getAttribute('data-view');
-            if(view === 'notif') renderAdmin();
-            else if(view === 'db') renderUserDB();
-            else if(view === 'pass') renderPassReqs();
-        }
     });
     setInterval(logic, 30);
     draw();
@@ -231,7 +234,9 @@ function logic() {
         if(s.isSpinning) {
             let timeLeft = s.endTime - now;
             if(timeLeft <= 0) {
-                s.isSpinning = false; s.isWaiting = true; s.endTime = now + 5000;
+                s.isSpinning = false; 
+                s.isWaiting = true; 
+                s.endTime = now + 5000; 
                 s.lastWinner = getWinningNumber();
                 let winnerData = (s.sold || []).find(x => x.n === s.lastWinner);
                 let premioMonto = PREMIOS[s.currentGiro];
@@ -240,23 +245,10 @@ function logic() {
                     if(winUser) { winUser.b += premioMonto; }
                 }
                 historial.push({ type:'win', u: winnerData ? winnerData.u : 'Nadie', sala: s.id, ganador: s.lastWinner, premio: premioMonto, fecha: new Date().toLocaleString() });
-                
-                if(s.currentGiro === 3) {
-                    // Restablecimiento inmediato después de los 5 segundos del último premio
-                    setTimeout(() => {
-                        s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; s.isWaiting = false; s.isSpinning = false;
-                        if(i === sSel) { 
-                            document.getElementById('live-counter').innerText = ""; 
-                            document.getElementById('status-txt').innerText = ""; 
-                            renderNumbers(); 
-                            renderGrid();
-                        }
-                        save(); 
-                    }, 5000);
-                }
                 change = true;
             } else if(i === sSel) {
-                let duration = 60000; let elapsed = duration - timeLeft; let progress = Math.min(1, elapsed / duration);
+                let duration = 15000; 
+                let elapsed = duration - timeLeft; let progress = Math.min(1, elapsed / duration);
                 let speed = 0.5 * Math.pow(1 - progress, 2); 
                 ang += speed; 
                 const ptr = document.getElementById('pointer');
@@ -269,17 +261,38 @@ function logic() {
                 draw(); document.getElementById('live-counter').innerText = `SORTEANDO: ${getWinningNumber()}`;
             }
         } else if(s.isWaiting) {
-            if(now >= s.endTime && s.currentGiro < 3 && s.currentGiro !== 0) { 
-                s.isWaiting = false; 
-                s.currentGiro++; 
-                s.isSpinning = true; 
-                s.endTime = now + 60000; 
+            if(now >= s.endTime) { 
+                if (s.currentGiro < 3) {
+                    s.isWaiting = false; 
+                    s.currentGiro++; 
+                    s.isSpinning = true; 
+                    s.endTime = now + 15000; 
+                } else {
+                    // RESET TRAS ÚLTIMO PREMIO
+                    s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; s.isWaiting = false; s.isSpinning = false;
+                    if(i === sSel) { 
+                        document.getElementById('live-counter').innerText = ""; 
+                        document.getElementById('status-txt').innerText = ""; 
+                        renderNumbers(); renderGrid();
+                    }
+                }
                 change = true; 
             }
         }
     });
-    if(change && currentU && currentU.u === "ADMIN_GLOBAL") save();
+    if(change) save();
     updateStatus();
+}
+
+function resetSalasManual() {
+    if(confirm("¿RESET TOTAL DE TODAS LAS SALAS AHORA?")) {
+        salas.forEach(s => {
+            s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; s.isSpinning = false; s.isWaiting = false;
+        });
+        save();
+        alert("Salas Reiniciadas");
+        location.reload();
+    }
 }
 
 function getWinningNumber() {
@@ -304,7 +317,7 @@ function comprarSeleccion() {
     if(cost > 0 && currentU.b >= cost) { 
         currentU.b -= cost; historial.push({ type:'buy', u: currentU.u, sala: s.id, nums: [...mySelection], fecha: new Date().toLocaleString() });
         if(!s.sold) s.sold = []; mySelection.forEach(num => s.sold.push({n: num, u: currentU.u})); s.count = s.sold.length; mySelection = []; 
-        if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.endTime = Date.now() + 60000; } save(); renderNumbers();
+        if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.endTime = Date.now() + 15000; } save(); renderNumbers();
     } 
 }
 
@@ -322,8 +335,8 @@ function openM(t) {
     else if(t==='recover') { c.innerHTML = `<h3>RECUPERAR</h3><p style="font-size:11px;">Ingresa tu correo para solicitar asistencia</p><input id="rec-u" placeholder="Tu correo"><button onclick="requestPass()" style="width:100%">ENVIAR SOLICITUD</button>`; }
     else if(t==='dep') { c.innerHTML = `<h3>RECARGAR</h3><p style="font-size:10px; color:var(--primary);">Mínimo de depósito: $5.00 USD<br>Tiempo: 0 - 1H</p><div class="wallet-box">TRC20: <b>TFtX2tLdjqTnTdVAUfQ8YNACv6QUAK9LAy</b></div><input id="dep-amt" type="number" placeholder="Monto $"><div class="upload-box" onclick="document.getElementById('f-in').click()">+ COMPROBANTE<input type="file" id="f-in" hidden onchange="previewFile()"><img id="preview-img"></div><button onclick="notificarPago()" style="width:100%">ENVIAR</button>`; }
     else if(t==='with') { c.innerHTML = `<h3>RETIRAR</h3><p style="font-size:10px; color:var(--red);">Mínimo de retiro: $10.00 USD<br>Tiempo: 0 - 1H</p><input id="wi-amt" type="number" placeholder="Monto $"><input id="wi-wallet" placeholder="Tu Billetera TRC20"><button onclick="solicitarRetiro()" style="width:100%; background:var(--red); color:#fff;">SOLICITAR RETIRO</button>`; }
-    else if(t==='faq') { c.innerHTML = `<h3>PREGUNTAS FRECUENTES</h3><div style="text-align:left; font-size:12px;"><b>¿Qué es GLOBAL CASH TIME?</b><p>Es una plataforma de sorteos en tiempo real donde puedes adquirir números del 1 al 200 en diferentes salas. Cada sala reparte 3 premios automáticos al completarse los cupos, procesando pagos de forma instantánea mediante tecnología blockchain (TRC20).</p></div>`; }
-    else if(t==='nosotros') { c.innerHTML = `<h3>NOSOTROS</h3><div style="text-align:left; font-size:12px;"><p>Somos un sistema de gestión de sorteos automatizado diseñado para brindar transparencia y rapidez. Nuestra misión es ofrecer una experiencia de juego justa donde la probabilidad y la tecnología se unen para premiar a nuestra comunidad global.</p></div>`; }
+    else if(t==='faq') { c.innerHTML = `<h3>PREGUNTAS FRECUENTES</h3><div style="text-align:left; font-size:12px;"><b>¿Qué es GLOBAL CASH TIME?</b><p>Es una plataforma de sorteos en tiempo real donde puedes adquirir números del 1 al 200 en diferentes salas. Cada sala reparte 3 premios automáticos al completarse los cupos.</p></div>`; }
+    else if(t==='nosotros') { c.innerHTML = `<h3>NOSOTROS</h3><div style="text-align:left; font-size:12px;"><p>Somos un sistema automatizado de sorteos transparentes.</p></div>`; }
     else if(t==='contacto') { c.innerHTML = `<h3>CONTACTO</h3><div style="font-size:14px; margin:20px 0;">📧 globalcashtime@gmail.com</div>`; }
     else if(t==='hist') { 
         let displayHist = historial.filter(h => h.u === currentU?.u || h.sala === (salas[sSel]?.id || sSel+1) || (currentU && currentU.u === 'ADMIN_GLOBAL')); 
@@ -377,3 +390,4 @@ function rechazarWith(idx) { let w = pendingWiths[idx]; let u = users.find(x => 
 
 </body>
 </html>
+
