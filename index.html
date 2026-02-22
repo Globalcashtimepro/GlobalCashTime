@@ -178,9 +178,7 @@ function initApp() {
         historial = data.historial || [];
         
         let dbSalas = data.salas || [];
-        if(dbSalas.length > 0) {
-            salas = dbSalas;
-        }
+        if(dbSalas.length > 0) salas = dbSalas;
 
         let resetRequired = false;
         salas.forEach(s => {
@@ -193,8 +191,15 @@ function initApp() {
 
         const saved = localStorage.getItem('GCT_SESSION');
         if(saved) {
-            if(saved === "ADMIN_GLOBAL") { currentU = {u:"ADMIN_GLOBAL", b:0}; document.getElementById('admin-panel').style.display='block'; }
-            else { 
+            if(saved === "ADMIN_GLOBAL") { 
+                currentU = {u:"ADMIN_GLOBAL", b:0}; 
+                document.getElementById('admin-panel').style.display='block';
+                // Actualizar vistas administrativas si están abiertas
+                const div = document.getElementById('pending-deps');
+                if(div.getAttribute('data-view') === 'notif') renderAdmin();
+                if(div.getAttribute('data-view') === 'db') renderUserDB();
+                if(div.getAttribute('data-view') === 'pass') renderPassReqs();
+            } else { 
                 let found = users.find(x => x.u === saved);
                 if(found) {
                     currentU = found;
@@ -239,7 +244,6 @@ function logic() {
         if(s.isSpinning) {
             let timeLeft = s.endTime - now;
             if(timeLeft <= 0) {
-                // AL TERMINAR EL TIEMPO, CALCULAMOS EL GANADOR FINAL UNA SOLA VEZ
                 const finalWinner = getWinningNumber();
                 s.isSpinning = false; 
                 s.isWaiting = true; 
@@ -269,7 +273,6 @@ function logic() {
                     ptr.style.transform = `translateY(-50%) rotate(0deg)`; 
                 }
                 draw(); 
-                // AQUÍ SE SINCRONIZA EL TEXTO EN TIEMPO REAL CON LA POSICIÓN EXACTA DE LA RULETA
                 document.getElementById('live-counter').innerText = `SORTEANDO: ${getWinningNumber()}`;
             }
         } else if(s.isWaiting) {
@@ -308,7 +311,6 @@ function resetSalasManual() {
 
 function getWinningNumber() {
     const normalizedAng = (ang % (Math.PI * 2) + (Math.PI * 2)) % (Math.PI * 2);
-    // Ajuste de precisión para que coincida con el puntero visual a la derecha
     const index = Math.floor(((Math.PI * 2 - normalizedAng) / (Math.PI * 2)) * 200) % 200;
     return wheelNumbers[index];
 }
@@ -357,7 +359,7 @@ function openM(t) {
             let salaTag = `<span style="color:var(--primary)">[SALA ${h.sala}]</span>`;
             let msg = h.type === 'buy' ? `${salaTag} <b style="color:var(--primary)">${h.u}</b> compró: [${h.nums.join(', ')}]` : 
                       h.type === 'win' ? `${salaTag} <b style="color:var(--green)">GANADOR: ${h.u}</b> (Nº${h.ganador}) - $${h.premio}` : 
-                      h.type === 'sys' ? `<b style="color:${h.msg.includes('Aprobado')?'var(--green)':'var(--red)'}">[SISTEMA]</b> ${h.u}: ${h.msg}` : `${salaTag} ${h.msg || ""}`;
+                      h.type === 'sys' ? `<b style="color:${h.msg.includes('Aprobado')||h.msg.includes('+')?'var(--green)':'var(--red)'}">[SISTEMA]</b> ${h.u}: ${h.msg}` : `${salaTag} ${h.msg || ""}`;
             return `<div style="border-bottom:1px solid #333; padding:8px 5px;">${msg}<br><small style="opacity:0.6;">${h.fecha}</small></div>`;
         }).join('') + `</div>`; 
     }
@@ -367,7 +369,7 @@ function openM(t) {
 function togglePass(id) { const el = document.getElementById(id); el.type = el.type === 'password' ? 'text' : 'password'; }
 function renderGrid() { const grid = document.getElementById('grid-salas'); grid.innerHTML = ""; salas.forEach((s, i) => { grid.innerHTML += `<div class="sala-card ${sSel===i?'active':''}" onclick="setSala(${i})"><b>SALA ${s.id}</b><div>${s.count}/200</div></div>`; }); }
 function renderNumbers() { 
-    const cont = document.getElementById('num-selector'); cont.innerHTML = ""; const s = salas[sSel]; if(!s) return;
+    const cont = document.getElementById('num-selector'); if(!cont) return; cont.innerHTML = ""; const s = salas[sSel]; if(!s) return;
     let soldArr = s.sold || [];
     let takenNums = soldArr.map(x => x.n); 
     for(let n=1; n<=200; n++) { 
@@ -388,9 +390,17 @@ function requestPass() { let u = document.getElementById('rec-u').value; if(u) {
 function previewFile() { const f = document.getElementById('f-in').files[0]; const r = new FileReader(); r.onloadend = () => { tempImg = r.result; document.getElementById('preview-img').src=tempImg; document.getElementById('preview-img').style.display='block'; }; if(f) r.readAsDataURL(f); }
 function notificarPago() { let a = parseFloat(document.getElementById('dep-amt').value); if(a >= 5 && tempImg) { pendingDeps.push({ u: currentU.u, a: a, img: tempImg, id: Date.now() }); save(); showSentMsg(); } }
 function solicitarRetiro() { let a = parseFloat(document.getElementById('wi-amt').value); let wal = document.getElementById('wi-wallet').value; if(a >= 10 && currentU.b >= a && wal) { currentU.b -= a; pendingWiths.push({ u: currentU.u, a: a, wallet: wal, id: Date.now(), fecha: new Date().toLocaleString() }); save(); showSentMsg(); } }
-function renderAdmin() { const div = document.getElementById('pending-deps'); div.setAttribute('data-view', 'notif'); div.innerHTML = "<h4>NOTIFICACIONES</h4>"; pendingDeps.forEach((p, idx) => { div.innerHTML += `<div class="admin-notif"><b>DEPÓSITO: ${p.u} ($${p.a})</b><br><img src="${p.img}" style="width:100%; max-width:200px; cursor:pointer; margin:5px 0; border:1px solid #444;" onclick="window.open(this.src)"><br><button onclick="aprobar(${idx})">Aprobar</button> <button onclick="rechazarDep(${idx})" style="background:var(--red); color:#fff;">Rechazar</button></div>`; }); pendingWiths.forEach((w, idx) => { div.innerHTML += `<div class="admin-notif" style="border-color:var(--red);"><b>RETIRO: ${w.u} ($${w.a})</b><br><small>Wallet: ${w.wallet}</small><br><button onclick="aprobarWith(${idx})">Finalizar Pago</button><button onclick="rechazarWith(${idx})" style="background:var(--red); color:#fff;">Rechazar</button></div>`; }); }
-function renderUserDB() { const div = document.getElementById('pending-deps'); div.setAttribute('data-view', 'db'); div.innerHTML = "<h4>BASE DE DATOS COMPLETA</h4>"; users.forEach((u, idx) => { div.innerHTML += `<div class="admin-notif" style="border-left-color:var(--link);"><div style="margin-bottom:8px;"><b>👤 ${u.u}</b><br>🔑 Pass: <span style="color:var(--primary)">${u.p}</span><br>💰 Saldo: <b style="color:var(--green)">$${u.b.toFixed(2)}</b></div><div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px;"><div style="display:flex; flex-direction:column; gap:3px;"><button onclick="editBal(${idx}, 0.5)" style="background:var(--green); color:#000; padding:4px; font-size:9px;">+ $0.50</button><button onclick="editBal(${idx}, 5)" style="background:var(--green); color:#000; padding:4px; font-size:9px;">+ $5.00</button><button onclick="editBal(${idx}, 10)" style="background:var(--green); color:#000; padding:4px; font-size:9px;">+ $10.00</button></div><div style="display:flex; flex-direction:column; gap:3px;"><button onclick="editBal(${idx}, -0.5)" style="background:var(--red); color:#fff; padding:4px; font-size:9px;">- $0.50</button><button onclick="editBal(${idx}, -5)" style="background:var(--red); color:#fff; padding:4px; font-size:9px;">- $5.00</button><button onclick="editBal(${idx}, -10)" style="background:var(--red); color:#fff; padding:4px; font-size:9px;">- $10.00</button></div></div></div>`; }); }
-function renderPassReqs() { const div = document.getElementById('pending-deps'); div.setAttribute('data-view', 'pass'); div.innerHTML = "<h4>SOLICITUDES CLAVES</h4>"; passReqs.forEach((r, idx) => { div.innerHTML += `<div class="admin-notif"><b>De: ${r.u}</b><br>${r.info}<br><small>${r.fecha}</small><br><button onclick="passReqs.splice(${idx},1); save();">Eliminar Solicitud</button></div>`; }); }
+function renderAdmin() { 
+    const div = document.getElementById('pending-deps'); div.setAttribute('data-view', 'notif'); div.innerHTML = "<h4>NOTIFICACIONES</h4>"; 
+    if(!pendingDeps.length && !pendingWiths.length) div.innerHTML += "<p style='opacity:0.5'>Sin pendientes</p>";
+    pendingDeps.forEach((p, idx) => { div.innerHTML += `<div class="admin-notif"><b>DEPÓSITO: ${p.u} ($${p.a})</b><br><img src="${p.img}" style="width:100%; max-width:200px; cursor:pointer; margin:5px 0; border:1px solid #444;" onclick="window.open(this.src)"><br><button onclick="aprobar(${idx})">Aprobar</button> <button onclick="rechazarDep(${idx})" style="background:var(--red); color:#fff;">Rechazar</button></div>`; }); 
+    pendingWiths.forEach((w, idx) => { div.innerHTML += `<div class="admin-notif" style="border-color:var(--red);"><b>RETIRO: ${w.u} ($${w.a})</b><br><small>Wallet: ${w.wallet}</small><br><button onclick="aprobarWith(${idx})">Finalizar Pago</button><button onclick="rechazarWith(${idx})" style="background:var(--red); color:#fff;">Rechazar</button></div>`; }); 
+}
+function renderUserDB() { 
+    const div = document.getElementById('pending-deps'); div.setAttribute('data-view', 'db'); div.innerHTML = "<h4>BASE DE DATOS COMPLETA</h4>"; 
+    users.forEach((u, idx) => { div.innerHTML += `<div class="admin-notif" style="border-left-color:var(--link);"><div style="margin-bottom:8px;"><b>👤 ${u.u}</b><br>🔑 Pass: <span style="color:var(--primary)">${u.p}</span><br>💰 Saldo: <b style="color:var(--green)">$${u.b.toFixed(2)}</b></div><div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px;"><div style="display:flex; flex-direction:column; gap:3px;"><button onclick="editBal(${idx}, 0.5)" style="background:var(--green); color:#000; padding:4px; font-size:9px;">+ $0.50</button><button onclick="editBal(${idx}, 5)" style="background:var(--green); color:#000; padding:4px; font-size:9px;">+ $5.00</button><button onclick="editBal(${idx}, 10)" style="background:var(--green); color:#000; padding:4px; font-size:9px;">+ $10.00</button></div><div style="display:flex; flex-direction:column; gap:3px;"><button onclick="editBal(${idx}, -0.5)" style="background:var(--red); color:#fff; padding:4px; font-size:9px;">- $0.50</button><button onclick="editBal(${idx}, -5)" style="background:var(--red); color:#fff; padding:4px; font-size:9px;">- $5.00</button><button onclick="editBal(${idx}, -10)" style="background:var(--red); color:#fff; padding:4px; font-size:9px;">- $10.00</button></div></div></div>`; }); 
+}
+function renderPassReqs() { const div = document.getElementById('pending-deps'); div.setAttribute('data-view', 'pass'); div.innerHTML = "<h4>SOLICITUDES CLAVES</h4>"; if(!passReqs.length) div.innerHTML += "<p style='opacity:0.5'>Sin solicitudes</p>"; passReqs.forEach((r, idx) => { div.innerHTML += `<div class="admin-notif"><b>De: ${r.u}</b><br>${r.info}<br><small>${r.fecha}</small><br><button onclick="passReqs.splice(${idx},1); save();">Eliminar Solicitud</button></div>`; }); }
 function editBal(idx, amt) { users[idx].b += amt; if(users[idx].b < 0) users[idx].b = 0; save(); }
 function aprobar(idx) { let p = pendingDeps[idx]; let u = users.find(x => x.u === p.u); if(u) { u.b += p.a; historial.push({ type: 'sys', u: p.u, msg: `Depósito Aprobado: +$${p.a}`, sala: 'SISTEMA', fecha: new Date().toLocaleString() }); } pendingDeps.splice(idx, 1); save(); }
 function rechazarDep(idx) { let p = pendingDeps[idx]; historial.push({ type: 'sys', u: p.u, msg: `Depósito RECHAZADO: $${p.a}`, sala: 'SISTEMA', fecha: new Date().toLocaleString() }); pendingDeps.splice(idx, 1); save(); }
@@ -402,3 +412,4 @@ function rechazarWith(idx) { let w = pendingWiths[idx]; let u = users.find(x => 
 
 </body>
 </html>
+
