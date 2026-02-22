@@ -151,7 +151,7 @@
 let users = [], currentU = null, ang = 0, sSel = 0, mySelection = [], tempImg = "";
 let pendingDeps = [], pendingWiths = [], passReqs = [], historial = []; 
 let salas = Array.from({length: 20}, (_, i) => ({ 
-    id: i+1, count: 0, sold: [], isSpinning: false, isWaiting: false, currentGiro: 0, endTime: 0, lastWinner: null, startTime: 0 
+    id: i+1, count: 0, sold: [], isSpinning: false, isWaiting: false, currentGiro: 0, endTime: 0, lastWinner: null 
 }));
 
 const wheelNumbers = Array.from({length: 200}, (_, i) => i + 1).sort(() => Math.random() - 0.5); 
@@ -203,6 +203,7 @@ function initApp() {
         }
     });
     setInterval(logic, 30);
+    draw();
 }
 
 function save() {
@@ -231,7 +232,7 @@ function logic() {
             let timeLeft = s.endTime - now;
             if(timeLeft <= 0) {
                 s.isSpinning = false; s.isWaiting = true; s.endTime = now + 5000;
-                s.lastWinner = getWinningNumberForTime(s.startTime, s.endTime);
+                s.lastWinner = getWinningNumber();
                 let winnerData = (s.sold || []).find(x => x.n === s.lastWinner);
                 let premioMonto = PREMIOS[s.currentGiro];
                 if(winnerData) {
@@ -242,24 +243,20 @@ function logic() {
                 
                 if(s.currentGiro === 3) {
                     setTimeout(() => {
-                        s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; s.isWaiting = false; s.isSpinning = false; s.startTime = 0;
-                        if(i === sSel) { 
-                            document.getElementById('live-counter').innerText = ""; 
-                            document.getElementById('status-txt').innerText = ""; 
-                            renderNumbers(); 
-                            renderGrid();
-                        }
+                        s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; s.isWaiting = false; s.isSpinning = false;
+                        if(i === sSel) { document.getElementById('live-counter').innerText = ""; document.getElementById('status-txt').innerText = ""; renderNumbers(); }
                         save(); 
                     }, 5000);
                 }
                 change = true;
             } else if(i === sSel) {
-                let duration = 60000; let elapsed = now - s.startTime; let progress = Math.min(1, elapsed / duration);
-                // Cálculo de ángulo basado en la desaceleración integral para tiempo real
-                ang = (0.5 * duration / 1000) * (1 - Math.pow(1 - progress, 3)) / 3;
+                let duration = 60000; let elapsed = duration - timeLeft; let progress = Math.min(1, elapsed / duration);
+                // Desaceleración natural: velocidad inicial alta que cae a cero al final (siempre a la derecha)
                 let speed = 0.5 * Math.pow(1 - progress, 2); 
+                ang += speed; 
                 const ptr = document.getElementById('pointer');
-                if (speed > 0.001) { 
+                if (speed > 0.0001) { 
+                    // El puntero vibra siguiendo el ritmo de la ruleta
                     let hitFrequency = Math.sin(ang * 200); 
                     ptr.style.transform = `translateY(-50%) rotate(${hitFrequency * 12 * (1-progress)}deg)`; 
                 } else { 
@@ -268,26 +265,15 @@ function logic() {
                 draw(); document.getElementById('live-counter').innerText = `SORTEANDO: ${getWinningNumber()}`;
             }
         } else if(s.isWaiting) {
-            if(now >= s.endTime && s.currentGiro < 3 && s.currentGiro !== 0) { 
-                s.isWaiting = false; s.currentGiro++; s.isSpinning = true; s.startTime = now; s.endTime = now + 60000; change = true; 
-            }
+            if(now >= s.endTime && s.currentGiro < 3 && s.currentGiro !== 0) { s.isWaiting = false; s.currentGiro++; s.isSpinning = true; s.endTime = now + 60000; change = true; }
         }
     });
-    if(!salas[sSel].isSpinning) draw(); 
     if(change && currentU && currentU.u === "ADMIN_GLOBAL") save();
     updateStatus();
 }
 
 function getWinningNumber() {
     const normalizedAng = (ang % (Math.PI * 2) + (Math.PI * 2)) % (Math.PI * 2);
-    const index = Math.floor(((Math.PI * 2 - normalizedAng) / (Math.PI * 2)) * 200) % 200;
-    return wheelNumbers[index];
-}
-
-function getWinningNumberForTime(start, end) {
-    let duration = end - start; 
-    let finalAng = (0.5 * duration / 1000) * (1 - Math.pow(0, 3)) / 3;
-    const normalizedAng = (finalAng % (Math.PI * 2) + (Math.PI * 2)) % (Math.PI * 2);
     const index = Math.floor(((Math.PI * 2 - normalizedAng) / (Math.PI * 2)) * 200) % 200;
     return wheelNumbers[index];
 }
@@ -301,20 +287,20 @@ function draw() {
     }
 }
 
-function setSala(i) { sSel = i; localStorage.setItem('GCT_S_SEL', i); mySelection = []; document.getElementById('sala-txt').innerText = `SALA #${salas[i]?.id || (i+1)}`; document.getElementById('live-counter').innerText = ""; document.getElementById('status-txt').innerText = ""; renderGrid(); renderNumbers(); ang = 0; }
+function setSala(i) { sSel = i; localStorage.setItem('GCT_S_SEL', i); mySelection = []; document.getElementById('sala-txt').innerText = `SALA #${salas[i]?.id || (i+1)}`; document.getElementById('live-counter').innerText = ""; document.getElementById('status-txt').innerText = ""; renderGrid(); renderNumbers(); }
 
 function comprarSeleccion() { 
     if(!currentU) return openM('auth'); let s = salas[sSel], cost = mySelection.length * 0.5; if(s.isSpinning || s.isWaiting) return alert("Sorteo en curso");
     if(cost > 0 && currentU.b >= cost) { 
         currentU.b -= cost; historial.push({ type:'buy', u: currentU.u, sala: s.id, nums: [...mySelection], fecha: new Date().toLocaleString() });
         if(!s.sold) s.sold = []; mySelection.forEach(num => s.sold.push({n: num, u: currentU.u})); s.count = s.sold.length; mySelection = []; 
-        if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.startTime = Date.now(); s.endTime = s.startTime + 60000; } save(); renderNumbers();
+        if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.endTime = Date.now() + 60000; } save(); renderNumbers();
     } 
 }
 
 function rand(n) { 
     let s = salas[sSel]; mySelection = []; let avail = []; let takenNums = (s.sold || []).map(x => x.n);
-    for(let n=1; n<=200; n++) if(!takenNums.includes(n)) avail.push(n); 
+    for(let i=1; i<=200; i++) if(!takenNums.includes(i)) avail.push(i); 
     for(let i=0; i<n && avail.length>0; i++) mySelection.push(avail.splice(Math.floor(Math.random()*avail.length),1)[0]); 
     renderNumbers(); 
 }
@@ -381,4 +367,3 @@ function rechazarWith(idx) { let w = pendingWiths[idx]; let u = users.find(x => 
 
 </body>
 </html>
-
