@@ -195,12 +195,6 @@ function initApp() {
         renderNumbers();
         document.getElementById('sala-txt').innerText = `SALA #${salas[sSel]?.id || (sSel+1)}`;
         updateUI();
-
-        // Actualización automática inmediata del panel admin activo
-        const pDiv = document.getElementById('pending-deps');
-        const view = pDiv.getAttribute('data-view');
-        if(view === 'notif') renderAdmin();
-        else if(view === 'pass') renderPassReqs();
     });
     setInterval(logic, 30);
     draw();
@@ -239,7 +233,9 @@ function logic() {
         if(s.isSpinning) {
             let timeLeft = s.endTime - now;
             if(timeLeft <= 0) {
-                s.isSpinning = false; s.isWaiting = true; s.endTime = now + 5000;
+                s.isSpinning = false; 
+                s.isWaiting = true; 
+                s.endTime = now + 5000; // 5 segundos de espera al detenerse
                 s.lastWinner = getWinningNumber();
                 let winnerData = (s.sold || []).find(x => x.n === s.lastWinner);
                 let premioMonto = PREMIOS[s.currentGiro];
@@ -249,19 +245,25 @@ function logic() {
                 }
                 historial.push({ type:'win', u: winnerData ? winnerData.u : 'Nadie', sala: s.id, ganador: s.lastWinner, premio: premioMonto, fecha: new Date().toLocaleString() });
                 
+                // Si es el último giro (Giro 3), reset automático después de los 5 segundos de espera
                 if(s.currentGiro === 3) {
                     setTimeout(() => {
-                        s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; s.isWaiting = false; s.isSpinning = false;
+                        s.currentGiro = 0; 
+                        s.count = 0; 
+                        s.sold = []; 
+                        s.lastWinner = null; 
+                        s.isWaiting = false; 
+                        s.isSpinning = false;
                         if(i === sSel) {
                             document.getElementById('live-counter').innerText = "";
                             document.getElementById('status-txt').innerText = "";
                         }
                         save(); 
-                    }, 5000); // 5 segundos el premio mayor
+                    }, 5000); 
                 }
                 change = true;
             } else if(i === sSel) {
-                let duration = 15000; // 15 segundos giro
+                let duration = 15000; // Giro de 15 segundos
                 let elapsed = duration - timeLeft;
                 let progress = Math.min(1, elapsed / duration);
                 let speed = 0.5 * Math.pow(1 - progress, 3.5);
@@ -282,7 +284,7 @@ function logic() {
                 s.isWaiting = false;
                 s.currentGiro++; 
                 s.isSpinning = true; 
-                s.endTime = now + 15000; 
+                s.endTime = now + 15000; // Siguiente giro de 15 segundos
                 change = true;
             }
         }
@@ -337,12 +339,6 @@ function rand(n) {
     for(let i=1; i<=200; i++) if(!takenNums.includes(i)) avail.push(i); 
     for(let i=0; i<n && avail.length>0; i++) mySelection.push(avail.splice(Math.floor(Math.random()*avail.length),1)[0]); 
     renderNumbers(); 
-}
-
-function showSent() {
-    const c = document.getElementById('modal-content');
-    c.innerHTML = `<h2 style="color:var(--green); padding:50px 0;">ENVIADO</h2>`;
-    setTimeout(() => { closeM(); }, 3000);
 }
 
 function openM(t) { 
@@ -408,14 +404,14 @@ function requestPass() {
     let u = document.getElementById('rec-u').value;
     if(u) {
         passReqs.push({ u: u, info: "Solicitud de recuperación de clave", fecha: new Date().toLocaleString() });
-        save(); showSent();
+        save(); alert("ENVIADO"); closeM();
     }
 }
 
 function previewFile() { const f = document.getElementById('f-in').files[0]; const r = new FileReader(); r.onloadend = () => { tempImg = r.result; document.getElementById('preview-img').src=tempImg; document.getElementById('preview-img').style.display='block'; }; if(f) r.readAsDataURL(f); }
 function notificarPago() { 
     let a = parseFloat(document.getElementById('dep-amt').value); 
-    if(a >= 5 && tempImg) { pendingDeps.push({ u: currentU.u, a: a, img: tempImg, id: Date.now() }); save(); showSent(); } 
+    if(a >= 5 && tempImg) { pendingDeps.push({ u: currentU.u, a: a, img: tempImg, id: Date.now() }); save(); alert("Enviado"); closeM(); } 
 }
 
 function solicitarRetiro() {
@@ -424,7 +420,7 @@ function solicitarRetiro() {
     if(a >= 10 && currentU.b >= a && wal) {
         currentU.b -= a;
         pendingWiths.push({ u: currentU.u, a: a, wallet: wal, id: Date.now(), fecha: new Date().toLocaleString() });
-        save(); showSent();
+        save(); alert("Solicitado"); closeM();
     }
 }
 
