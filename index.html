@@ -55,7 +55,7 @@
         .numbers-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; background: #000; padding: 10px; border-radius: 8px; max-height: 400px; overflow-y: auto; }
         .num-btn { padding: 8px 0; font-size: 10px; border: 1px solid #333; background: #111; color: #fff; cursor: pointer; border-radius: 4px; }
         .num-btn.selected { background: var(--green); color: #000; font-weight: bold; }
-        .num-btn.taken { background: var(--red) !important; color: #fff !important; cursor: not-allowed; pointer-events: none; }
+        .num-btn.taken { background: var(--red) !important; color: #fff !important; cursor: not-allowed; pointer-events: none; opacity: 0.6; }
         .btn-rand { background: #222; color: #fff; border: 1px solid #444; padding: 8px; font-size: 10px; flex: 1; text-transform: none; }
         .btn-rand b { color: var(--primary); display: block; font-size: 11px; }
         .modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:1000; justify-content:center; align-items:center; }
@@ -176,10 +176,10 @@ function initApp() {
         passReqs = data.passReqs || [];
         historial = data.historial || [];
         
-        // RESET FORZADO DE SALAS PARA ESTA CARGA
-        salas = Array.from({length: 20}, (_, i) => ({ 
-            id: i+1, count: 0, sold: [], isSpinning: false, isWaiting: false, currentGiro: 0, endTime: 0, lastWinner: null 
-        }));
+        let dbSalas = data.salas || [];
+        if(dbSalas.length > 0) {
+            salas = dbSalas;
+        }
 
         const saved = localStorage.getItem('GCT_SESSION');
         if(saved) {
@@ -244,7 +244,7 @@ function logic() {
                 if(s.currentGiro === 3) {
                     setTimeout(() => {
                         s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; s.isWaiting = false; s.isSpinning = false;
-                        if(i === sSel) { document.getElementById('live-counter').innerText = ""; document.getElementById('status-txt').innerText = ""; }
+                        if(i === sSel) { document.getElementById('live-counter').innerText = ""; document.getElementById('status-txt').innerText = ""; renderNumbers(); }
                         save(); 
                     }, 5000);
                 }
@@ -287,7 +287,7 @@ function comprarSeleccion() {
     if(cost > 0 && currentU.b >= cost) { 
         currentU.b -= cost; historial.push({ type:'buy', u: currentU.u, sala: s.id, nums: [...mySelection], fecha: new Date().toLocaleString() });
         if(!s.sold) s.sold = []; mySelection.forEach(num => s.sold.push({n: num, u: currentU.u})); s.count = s.sold.length; mySelection = []; 
-        if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.endTime = Date.now() + 15000; } save(); 
+        if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.endTime = Date.now() + 15000; } save(); renderNumbers();
     } 
 }
 
@@ -326,7 +326,9 @@ function togglePass(id) { const el = document.getElementById(id); el.type = el.t
 function renderGrid() { const grid = document.getElementById('grid-salas'); grid.innerHTML = ""; salas.forEach((s, i) => { grid.innerHTML += `<div class="sala-card ${sSel===i?'active':''}" onclick="setSala(${i})"><b>SALA ${s.id}</b><div>${s.count}/200</div></div>`; }); }
 function renderNumbers() { 
     const cont = document.getElementById('num-selector'); cont.innerHTML = ""; const s = salas[sSel]; if(!s) return;
-    let takenNums = (s.sold || []).map(x => x.n); for(let n=1; n<=200; n++) { 
+    let soldArr = s.sold || [];
+    let takenNums = soldArr.map(x => x.n); 
+    for(let n=1; n<=200; n++) { 
         const isSold = takenNums.includes(n), isSel = mySelection.includes(n); 
         cont.innerHTML += `<button class="num-btn ${isSold?'taken':''} ${isSel?'selected':''}" onclick="${!isSold ? `toggleNum(${n})` : ''}">${n}</button>`; 
     } document.getElementById('prog-txt').innerText = `${s.count} / 200 Vendidos`; 
@@ -358,4 +360,3 @@ function rechazarWith(idx) { let w = pendingWiths[idx]; let u = users.find(x => 
 
 </body>
 </html>
-
