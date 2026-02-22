@@ -43,20 +43,9 @@
         .profile-card { display: none; background: linear-gradient(145deg, #1a1a1a, #0a0800); border: 2px solid var(--primary); padding: 15px; border-radius: 15px; margin: 0 auto 20px; width: 100%; max-width: 480px; box-sizing: border-box; }
         .label-gold { color: var(--primary); font-size: 10px; font-weight: bold; text-transform: uppercase; }
         .section-box { background: var(--card); padding: 15px; border-radius: 15px; margin-bottom: 20px; text-align: center; border: 1px solid #222; }
-        
-        .info-promo-box { background: rgba(20, 20, 20, 0.8); border: 1px solid #333; border-radius: 12px; padding: 15px; margin-bottom: 20px; text-align: center; }
-        .promo-title { color: var(--green); font-weight: 900; font-size: 18px; margin-bottom: 5px; }
-        .promo-subtitle { font-size: 13px; color: #ccc; margin-bottom: 10px; }
-        .promo-giros { display: flex; justify-content: center; gap: 10px; font-size: 12px; font-weight: bold; }
-        .giro-tag { background: #222; padding: 5px 10px; border-radius: 5px; border: 1px solid var(--primary-dark); }
-
-        /* AJUSTE A 25 POR FILA */
-        .salas-grid { display: grid; grid-template-columns: repeat(25, 1fr); gap: 5px; margin-bottom: 20px; width: 100%; overflow-x: auto; padding-bottom: 10px; }
-        .sala-card { background: #0a0a0a; border: 1px solid #333; border-radius: 8px; padding: 5px; text-align: center; cursor: pointer; transition: 0.3s; min-width: 40px; }
-        .sala-card b { font-size: 9px; display: block; }
-        .sala-card div { font-size: 8px; }
-        .sala-card.active { border-color: var(--primary); background: #2a2200; box-shadow: 0 0 10px rgba(255, 234, 0, 0.4); }
-
+        .salas-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 20px; }
+        .sala-card { background: #0a0a0a; border: 1px solid #333; border-radius: 12px; padding: 8px; text-align: center; cursor: pointer; transition: 0.3s; }
+        .sala-card.active { border-color: var(--primary); background: #2a2200; box-shadow: 0 0 15px rgba(255, 234, 0, 0.4); }
         .game-layout { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; align-items: flex-start; }
         .left-col { width: 320px; flex-shrink: 0; }
         .right-col { flex: 1; min-width: 300px; }
@@ -80,9 +69,7 @@
         .admin-notif { background: #1a1a1a; padding: 10px; margin-bottom: 10px; border-radius: 5px; font-size: 11px; border-left: 3px solid var(--primary); text-align: left; }
         footer { width: 100%; padding: 30px 0; background: #0a0a0a; border-top: 1px solid #222; text-align: center; color: #555; font-size: 12px; }
         .f-links { margin-top: 10px; display: flex; justify-content: center; gap: 15px; color: var(--link); cursor: pointer; }
-        
-        @media (max-width: 1000px) { .salas-grid { grid-template-columns: repeat(10, 1fr); } }
-        @media (max-width: 600px) { .salas-grid { grid-template-columns: repeat(5, 1fr); } .left-col, .right-col { width: 100%; } }
+        @media (max-width: 768px) { .salas-grid { grid-template-columns: repeat(2, 1fr); } .left-col, .right-col { width: 100%; } }
     </style>
 </head>
 <body>
@@ -107,7 +94,7 @@
             <button onclick="logout()" style="flex:1; background:#333; color:#fff;">SALIR</button>
         </div>
         <div id="admin-panel" style="display:none; margin-top:15px; border-top:1px solid #444; padding-top:10px;">
-            <span class="label-gold">PANEL ADMIN</span>
+            <span class="label-gold">PANEL ADMIN (RECARGAS / RETIROS / USUARIOS)</span>
             <div id="admin-actions" style="margin-top:10px; display:grid; grid-template-columns: 1fr 1fr 1fr; gap:5px;">
                 <button onclick="renderAdmin()" style="font-size:9px;">NOTIFICACIONES</button>
                 <button onclick="renderUserDB()" style="font-size:9px;">BASE DE DATOS</button>
@@ -116,17 +103,6 @@
             </div>
             <div id="pending-deps" style="margin-top:10px; max-height: 400px; overflow-y: auto;"></div>
         </div>
-    </div>
-
-    <div class="info-promo-box">
-        <div class="promo-title">GANA $50 CON $0,50</div>
-        <div class="promo-subtitle">3 ENTRE 200 | ¡Bienvenido! al Sorteo por Participación</div>
-        <div class="promo-giros">
-            <div class="giro-tag">GIRO 1: $5</div>
-            <div class="giro-tag">GIRO 2: $10</div>
-            <div class="giro-tag">GIRO 3: $50 🏆</div>
-        </div>
-        <div style="font-size: 10px; margin-top: 10px; color: var(--primary); font-weight: bold;">¡QUE GANE EL MEJOR!</div>
     </div>
 
     <div class="salas-grid" id="grid-salas"></div>
@@ -175,8 +151,7 @@
 <script>
 let users = [], currentU = null, ang = 0, sSel = 0, mySelection = [], tempImg = "";
 let pendingDeps = [], pendingWiths = [], passReqs = [], historial = []; 
-// AHORA 50 SALAS
-let salas = Array.from({length: 50}, (_, i) => ({ 
+let salas = Array.from({length: 20}, (_, i) => ({ 
     id: i+1, count: 0, sold: [], isSpinning: false, isWaiting: false, waitStep: 0, currentGiro: 0, endTime: 0, lastWinner: null 
 }));
 
@@ -204,10 +179,6 @@ function initApp() {
         
         let dbSalas = data.salas || [];
         if(dbSalas.length > 0) salas = dbSalas;
-        // Asegurar que siempre hay 50 si la DB tiene menos
-        if(salas.length < 50) {
-            for(let i=salas.length; i<50; i++) salas.push({id: i+1, count: 0, sold: [], isSpinning: false, isWaiting: false, waitStep: 0, currentGiro: 0, endTime: 0, lastWinner: null});
-        }
 
         let resetRequired = false;
         salas.forEach(s => {
@@ -223,6 +194,10 @@ function initApp() {
             if(saved === "ADMIN_GLOBAL") { 
                 currentU = {u:"ADMIN_GLOBAL", b:0}; 
                 document.getElementById('admin-panel').style.display='block';
+                const div = document.getElementById('pending-deps');
+                if(div.getAttribute('data-view') === 'notif') renderAdmin();
+                if(div.getAttribute('data-view') === 'db') renderUserDB();
+                if(div.getAttribute('data-view') === 'pass') renderPassReqs();
             } else { 
                 let found = users.find(x => x.u === saved);
                 if(found) {
@@ -278,10 +253,11 @@ function logic() {
             let speed = 0.5 * Math.pow(1 - progress, 2.5); 
 
             if(timeLeft <= 0 || speed <= 0.0001) {
+                // DETENCION TOTAL: La ruleta se detiene
                 const finalWinner = getWinningNumber();
                 s.isSpinning = false; 
                 s.isWaiting = true; 
-                s.waitStep = 1; 
+                s.waitStep = 1; // Paso 1: Espera de 2 segundos en silencio
                 s.endTime = now + 2000; 
                 s.lastWinner = finalWinner;
                 
@@ -312,14 +288,16 @@ function logic() {
                 draw(); 
             }
         } else if(s.isWaiting) {
+            // PASO 1: ESPERA DE 2 SEGUNDOS (Silencio total)
             if(s.waitStep === 1) {
                 if(i === sSel) document.getElementById('live-counter').innerText = ""; 
                 if(now >= s.endTime) {
-                    s.waitStep = 2; 
+                    s.waitStep = 2; // Paso 2: Mostrar ganador por 4 segundos
                     s.endTime = now + 4000;
                     change = true;
                 }
             } 
+            // PASO 2: MOSTRAR GANADOR (4 segundos)
             else if(s.waitStep === 2) {
                 if(i === sSel && s.lastWinner) {
                     document.getElementById('live-counter').innerText = `GANADOR: #${s.lastWinner}`;
@@ -331,6 +309,7 @@ function logic() {
                         s.currentGiro++; 
                         s.isSpinning = true; 
                         s.endTime = now + 60000; 
+                        if(i === sSel) document.getElementById('live-counter').innerText = "";
                     } else {
                         s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; s.isWaiting = false; s.isSpinning = false;
                         if(i === sSel) { 
@@ -436,18 +415,24 @@ function notificarPago() { let a = parseFloat(document.getElementById('dep-amt')
 function solicitarRetiro() { let a = parseFloat(document.getElementById('wi-amt').value); let wal = document.getElementById('wi-wallet').value; if(a >= 10 && currentU.b >= a && wal) { currentU.b -= a; pendingWiths.push({ u: currentU.u, a: a, wallet: wal, id: Date.now(), fecha: new Date().toLocaleString() }); save(); showSentMsg(); } }
 function renderAdmin() { 
     const div = document.getElementById('pending-deps'); div.setAttribute('data-view', 'notif'); div.innerHTML = "<h4>NOTIFICACIONES</h4>"; 
-    pendingDeps.forEach((p, idx) => { div.innerHTML += `<div class="admin-notif"><b>DEPÓSITO: ${p.u} ($${p.a})</b><br><img src="${p.img}" style="width:100%; cursor:pointer;" onclick="window.open(this.src)"><br><button onclick="aprobar(${idx})">Aprobar</button></div>`; }); 
+    if(!pendingDeps.length && !pendingWiths.length) div.innerHTML += "<p style='opacity:0.5'>Sin pendientes</p>";
+    pendingDeps.forEach((p, idx) => { div.innerHTML += `<div class="admin-notif"><b>DEPÓSITO: ${p.u} ($${p.a})</b><br><img src="${p.img}" style="width:100%; max-width:200px; cursor:pointer; margin:5px 0; border:1px solid #444;" onclick="window.open(this.src)"><br><button onclick="aprobar(${idx})">Aprobar</button> <button onclick="rechazarDep(${idx})" style="background:var(--red); color:#fff;">Rechazar</button></div>`; }); 
+    pendingWiths.forEach((w, idx) => { div.innerHTML += `<div class="admin-notif" style="border-color:var(--red);"><b>RETIRO: ${w.u} ($${w.a})</b><br><small>Wallet: ${w.wallet}</small><br><button onclick="aprobarWith(${idx})">Finalizar Pago</button><button onclick="rechazarWith(${idx})" style="background:var(--red); color:#fff;">Rechazar</button></div>`; }); 
 }
 function renderUserDB() { 
-    const div = document.getElementById('pending-deps'); div.setAttribute('data-view', 'db'); div.innerHTML = "<h4>BASE DE DATOS</h4>"; 
-    users.forEach((u, idx) => { div.innerHTML += `<div class="admin-notif"><b>👤 ${u.u}</b> - Saldo: $${u.b.toFixed(2)}<br><button onclick="editBal(${idx}, 1)">+ $1</button><button onclick="editBal(${idx}, -1)">- $1</button></div>`; }); 
+    const div = document.getElementById('pending-deps'); div.setAttribute('data-view', 'db'); div.innerHTML = "<h4>BASE DE DATOS COMPLETA</h4>"; 
+    users.forEach((u, idx) => { div.innerHTML += `<div class="admin-notif" style="border-left-color:var(--link);"><div style="margin-bottom:8px;"><b>👤 ${u.u}</b><br>🔑 Pass: <span style="color:var(--primary)">${u.p}</span><br>💰 Saldo: <b style="color:var(--green)">$${u.b.toFixed(2)}</b></div><div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px;"><div style="display:flex; flex-direction:column; gap:3px;"><button onclick="editBal(${idx}, 0.5)" style="background:var(--green); color:#000; padding:4px; font-size:9px;">+ $0.50</button><button onclick="editBal(${idx}, 5)" style="background:var(--green); color:#000; padding:4px; font-size:9px;">+ $5.00</button><button onclick="editBal(${idx}, 10)" style="background:var(--green); color:#000; padding:4px; font-size:9px;">+ $10.00</button></div><div style="display:flex; flex-direction:column; gap:3px;"><button onclick="editBal(${idx}, -0.5)" style="background:var(--red); color:#fff; padding:4px; font-size:9px;">- $0.50</button><button onclick="editBal(${idx}, -5)" style="background:var(--red); color:#fff; padding:4px; font-size:9px;">- $5.00</button><button onclick="editBal(${idx}, -10)" style="background:var(--red); color:#fff; padding:4px; font-size:9px;">- $10.00</button></div></div></div>`; }); 
 }
-function renderPassReqs() { const div = document.getElementById('pending-deps'); div.setAttribute('data-view', 'pass'); div.innerHTML = "<h4>CLAVES</h4>"; passReqs.forEach((r, idx) => { div.innerHTML += `<div class="admin-notif"><b>De: ${r.u}</b><br><button onclick="passReqs.splice(${idx},1); save();">Eliminar</button></div>`; }); }
-function editBal(idx, amt) { users[idx].b += amt; save(); }
-function aprobar(idx) { let p = pendingDeps[idx]; let u = users.find(x => x.u === p.u); if(u) u.b += p.a; pendingDeps.splice(idx, 1); save(); }
+function renderPassReqs() { const div = document.getElementById('pending-deps'); div.setAttribute('data-view', 'pass'); div.innerHTML = "<h4>SOLICITUDES CLAVES</h4>"; if(!passReqs.length) div.innerHTML += "<p style='opacity:0.5'>Sin solicitudes</p>"; passReqs.forEach((r, idx) => { div.innerHTML += `<div class="admin-notif"><b>De: ${r.u}</b><br>${r.info}<br><small>${r.fecha}</small><br><button onclick="passReqs.splice(${idx},1); save();">Eliminar Solicitud</button></div>`; }); }
+function editBal(idx, amt) { users[idx].b += amt; if(users[idx].b < 0) users[idx].b = 0; save(); }
+function aprobar(idx) { let p = pendingDeps[idx]; let u = users.find(x => x.u === p.u); if(u) { u.b += p.a; historial.push({ type: 'sys', u: p.u, msg: `Depósito Aprobado: +$${p.a}`, sala: 'SISTEMA', fecha: new Date().toLocaleString() }); } pendingDeps.splice(idx, 1); save(); }
+function rechazarDep(idx) { let p = pendingDeps[idx]; historial.push({ type: 'sys', u: p.u, msg: `Depósito RECHAZADO: $${p.a}`, sala: 'SISTEMA', fecha: new Date().toLocaleString() }); pendingDeps.splice(idx, 1); save(); }
+function aprobarWith(idx) { let w = pendingWiths[idx]; historial.push({ type: 'sys', u: w.u, msg: `Retiro Aprobado: -$${w.a}`, sala: 'SISTEMA', fecha: new Date().toLocaleString() }); pendingWiths.splice(idx, 1); save(); }
+function rechazarWith(idx) { let w = pendingWiths[idx]; let u = users.find(x => x.u === w.u); if(u) u.b += w.a; historial.push({ type: 'sys', u: w.u, msg: `Retiro RECHAZADO: $${w.a}`, sala: 'SISTEMA', fecha: new Date().toLocaleString() }); pendingWiths.splice(idx, 1); save(); }
 </script>
 
 <div style="font-size: 8px; color: #333; width: 100%; text-align: center; padding-bottom: 10px;">Todos los derechos reservados.</div>
 
 </body>
 </html>
+
