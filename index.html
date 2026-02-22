@@ -149,8 +149,12 @@
 <div id="modal" class="modal"><div id="modal-content" class="section-box" style="width:90%; max-width:380px;"></div></div>
 
 <script>
+// RESTABLECIMIENTO DE TABLAS (Salas vacías e historial limpio)
 let users = [], currentU = null, ang = 0, sSel = 0, mySelection = [], tempImg = "";
-let pendingDeps = [], pendingWiths = [], passReqs = [], historial = [], salas = [];
+let pendingDeps = [], pendingWiths = [], passReqs = [], historial = []; 
+let salas = Array.from({length: 20}, (_, i) => ({ 
+    id: i+1, count: 0, sold: [], isSpinning: false, isWaiting: false, currentGiro: 0, endTime: 0, lastWinner: null 
+}));
 
 const wheelNumbers = Array.from({length: 200}, (_, i) => i + 1).sort(() => Math.random() - 0.5); 
 const PREMIOS = { 1: 5, 2: 15, 3: 50 };
@@ -175,13 +179,9 @@ function initApp() {
         historial = data.historial || [];
         
         let newSalas = data.salas || [];
-        if(newSalas.length === 0) {
-            newSalas = Array.from({length: 20}, (_, i) => ({ 
-                id: i+1, count: 0, sold: [], isSpinning: false, isWaiting: false, currentGiro: 0, endTime: 0, lastWinner: null 
-            }));
-        }
-
+        if(newSalas.length === 0) { newSalas = salas; }
         salas = newSalas;
+
         const saved = localStorage.getItem('GCT_SESSION');
         if(saved) {
             if(saved === "ADMIN_GLOBAL") { currentU = {u:"ADMIN_GLOBAL", b:0}; document.getElementById('admin-panel').style.display='block'; }
@@ -243,7 +243,6 @@ function logic() {
                 historial.push({ type:'win', u: winnerData ? winnerData.u : 'Nadie', sala: s.id, ganador: s.lastWinner, premio: premioMonto, fecha: new Date().toLocaleString() });
                 
                 if(s.currentGiro === 3) {
-                    // RESET AUTOMATICO TRAS 3 SEGUNDOS
                     setTimeout(() => {
                         s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; s.isWaiting = false; s.isSpinning = false;
                         if(i === sSel) { document.getElementById('live-counter').innerText = ""; document.getElementById('status-txt').innerText = ""; }
