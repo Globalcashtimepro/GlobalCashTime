@@ -194,7 +194,13 @@ function initApp() {
         const saved = localStorage.getItem('GCT_SESSION');
         if(saved) {
             if(saved === "ADMIN_GLOBAL") { currentU = {u:"ADMIN_GLOBAL", b:0}; document.getElementById('admin-panel').style.display='block'; }
-            else { currentU = users.find(x => x.u === saved); }
+            else { 
+                let found = users.find(x => x.u === saved);
+                if(found) {
+                    currentU = found;
+                    document.getElementById('prof-balance').innerText = `$${currentU.b.toFixed(2)}`;
+                }
+            }
             if(currentU) showProfile();
         }
         
@@ -233,10 +239,13 @@ function logic() {
         if(s.isSpinning) {
             let timeLeft = s.endTime - now;
             if(timeLeft <= 0) {
+                // AL TERMINAR EL TIEMPO, CALCULAMOS EL GANADOR FINAL UNA SOLA VEZ
+                const finalWinner = getWinningNumber();
                 s.isSpinning = false; 
                 s.isWaiting = true; 
                 s.endTime = now + 5000; 
-                s.lastWinner = getWinningNumber();
+                s.lastWinner = finalWinner;
+                
                 let winnerData = (s.sold || []).find(x => x.n === s.lastWinner);
                 let premioMonto = PREMIOS[s.currentGiro];
                 if(winnerData) {
@@ -246,24 +255,21 @@ function logic() {
                 historial.push({ type:'win', u: winnerData ? winnerData.u : 'Nadie', sala: s.id, ganador: s.lastWinner, premio: premioMonto, fecha: new Date().toLocaleString() });
                 change = true;
             } else if(i === sSel) {
-                // GIRO DE 60 SEGUNDOS CON DESACELERACIÓN NATURAL (SOLO UN LADO)
                 let duration = 60000; 
                 let elapsed = duration - timeLeft;
                 let progress = Math.min(1, elapsed / duration);
-                
-                // Desaceleración progresiva suave: empieza rápido, termina casi detenido
                 let speed = 0.4 * Math.pow(1 - progress, 3); 
                 ang += speed; 
 
                 const ptr = document.getElementById('pointer');
                 if (speed > 0.0001) { 
-                    // El puntero sigue el ritmo vibrando menos según baja la velocidad
                     let hitFrequency = Math.sin(ang * 200); 
                     ptr.style.transform = `translateY(-50%) rotate(${hitFrequency * 10 * (1-progress)}deg)`; 
                 } else { 
                     ptr.style.transform = `translateY(-50%) rotate(0deg)`; 
                 }
                 draw(); 
+                // AQUÍ SE SINCRONIZA EL TEXTO EN TIEMPO REAL CON LA POSICIÓN EXACTA DE LA RULETA
                 document.getElementById('live-counter').innerText = `SORTEANDO: ${getWinningNumber()}`;
             }
         } else if(s.isWaiting) {
@@ -272,7 +278,7 @@ function logic() {
                     s.isWaiting = false; 
                     s.currentGiro++; 
                     s.isSpinning = true; 
-                    s.endTime = now + 60000; // Siguiente giro también 60s
+                    s.endTime = now + 60000; 
                 } else {
                     s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; s.isWaiting = false; s.isSpinning = false;
                     if(i === sSel) { 
@@ -302,6 +308,7 @@ function resetSalasManual() {
 
 function getWinningNumber() {
     const normalizedAng = (ang % (Math.PI * 2) + (Math.PI * 2)) % (Math.PI * 2);
+    // Ajuste de precisión para que coincida con el puntero visual a la derecha
     const index = Math.floor(((Math.PI * 2 - normalizedAng) / (Math.PI * 2)) * 200) % 200;
     return wheelNumbers[index];
 }
@@ -371,7 +378,7 @@ function renderNumbers() {
 function toggleNum(n) { if(mySelection.includes(n)) mySelection = mySelection.filter(x => x !== n); else mySelection.push(n); renderNumbers(); }
 function updateStatus() { let s = salas[sSel], st = document.getElementById('status-txt'); if(!s) return; if(s.isSpinning) st.innerText = `GIRO ${s.currentGiro} EN PROGRESO...`; else if(s.isWaiting) st.innerText = s.lastWinner ? `GANADOR: #${s.lastWinner}` : ""; }
 function showProfile() { document.getElementById('guest-btn').style.display='none'; document.getElementById('user-profile').style.display='block'; document.getElementById('prof-name').innerText = currentU.u; }
-function updateUI() { if(currentU && currentU.u !== "ADMIN_GLOBAL") { let liveU = users.find(x => x.u === currentU.u); if(liveU) currentU.b = liveU.b; document.getElementById('prof-balance').innerText = `$${currentU.b.toFixed(2)}`; } }
+function updateUI() { if(currentU && currentU.u !== "ADMIN_GLOBAL") { let liveU = users.find(x => x.u === currentU.u); if(liveU) { currentU.b = liveU.b; document.getElementById('prof-balance').innerText = `$${currentU.b.toFixed(2)}`; } } }
 function logout() { localStorage.removeItem('GCT_SESSION'); location.reload(); }
 function closeM() { document.getElementById('modal').style.display='none'; tempImg=""; }
 function showSentMsg() { const c = document.getElementById('modal-content'); c.innerHTML = `<h2 style="color:var(--green); margin: 50px 0;">ENVIADO</h2>`; setTimeout(() => { closeM(); }, 2000); }
@@ -395,4 +402,3 @@ function rechazarWith(idx) { let w = pendingWiths[idx]; let u = users.find(x => 
 
 </body>
 </html>
-
