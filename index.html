@@ -69,13 +69,11 @@
         .admin-notif { background: #1a1a1a; padding: 10px; margin-bottom: 10px; border-radius: 5px; font-size: 11px; border-left: 3px solid var(--primary); text-align: left; }
         footer { width: 100%; padding: 30px 0; background: #0a0a0a; border-top: 1px solid #222; text-align: center; color: #555; font-size: 12px; }
         .f-links { margin-top: 10px; display: flex; justify-content: center; gap: 15px; color: var(--link); cursor: pointer; }
-        #sent-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 9999; justify-content: center; align-items: center; color: var(--green); font-size: 40px; font-weight: 900; }
         @media (max-width: 768px) { .salas-grid { grid-template-columns: repeat(2, 1fr); } .left-col, .right-col { width: 100%; } }
     </style>
 </head>
 <body>
 
-<div id="sent-overlay">ENVIADO</div>
 <div class="bg-glow" id="rain-container"></div>
 
 <header>
@@ -103,7 +101,6 @@
                 <button onclick="renderPassReqs()" style="font-size:9px;">CLAVES</button>
             </div>
             <div id="pending-deps" style="margin-top:10px; max-height: 400px; overflow-y: auto;"></div>
-            <button onclick="resetAllSalas()" style="width:100%; background:var(--red); color:#fff; margin-top:10px; font-size:10px;">⚠️ RESTABLECER TODAS LAS SALAS ⚠️</button>
         </div>
     </div>
 
@@ -183,7 +180,7 @@ function initApp() {
                 id: i+1, count: 0, sold: [], isSpinning: false, isWaiting: false, currentGiro: 0, endTime: 0, lastWinner: null 
             }));
         }
-        
+
         salas = newSalas;
         const saved = localStorage.getItem('GCT_SESSION');
         if(saved) {
@@ -197,10 +194,6 @@ function initApp() {
         renderNumbers();
         document.getElementById('sala-txt').innerText = `SALA #${salas[sSel]?.id || (sSel+1)}`;
         updateUI();
-
-        const panel = document.getElementById('pending-deps');
-        if(panel.getAttribute('data-view') === 'db') renderUserDB();
-        else if(panel.getAttribute('data-view') === 'notif') renderAdmin();
     });
     setInterval(logic, 30);
     draw();
@@ -208,14 +201,6 @@ function initApp() {
 
 function save() {
     window.dbSet(window.dbRef(window.db), { users, pendingDeps, pendingWiths, passReqs, historial, salas });
-}
-
-function resetAllSalas() {
-    if(confirm("¿RESTABLECER TODAS LAS SALAS A CERO?")) {
-        salas.forEach(s => { s.count = 0; s.sold = []; s.isSpinning = false; s.isWaiting = false; s.currentGiro = 0; s.endTime = 0; s.lastWinner = null; });
-        save();
-        alert("TODAS LAS SALAS HAN SIDO VACIADAS");
-    }
 }
 
 function createRain() {
@@ -239,56 +224,48 @@ function logic() {
         if(s.isSpinning) {
             let timeLeft = s.endTime - now;
             if(timeLeft <= 0) {
-                s.isSpinning = false; s.isWaiting = true; s.endTime = now + 5000;
+                s.isSpinning = false; 
+                s.isWaiting = true; 
+                s.endTime = now + 5000;
                 s.lastWinner = getWinningNumber();
                 let winnerData = (s.sold || []).find(x => x.n === s.lastWinner);
                 let premioMonto = PREMIOS[s.currentGiro];
+                
                 if(winnerData) {
                     let winUser = users.find(u => u.u === winnerData.u);
                     if(winUser) { winUser.b += premioMonto; }
                 }
+                
                 historial.push({ type:'win', u: winnerData ? winnerData.u : 'Nadie', sala: s.id, ganador: s.lastWinner, premio: premioMonto, fecha: new Date().toLocaleString() });
                 
                 if(s.currentGiro === 3) {
-                    setTimeout(() => {
-                        s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; s.isWaiting = false; s.isSpinning = false;
-                        if(i === sSel) {
-                            document.getElementById('live-counter').innerText = "";
-                            document.getElementById('status-txt').innerText = "";
-                        }
-                        save(); 
-                    }, 5000);
+                    s.isWaiting = true;
+                    s.endTime = now + 5000;
                 }
                 change = true;
             } else if(i === sSel) {
-                let duration = 60000; 
+                let duration = 15000;
                 let elapsed = duration - timeLeft;
                 let progress = Math.min(1, elapsed / duration);
-                // DESACELERACIÓN LENTA Y NATURAL (Cúbica inversa)
-                let speed = 0.6 * Math.pow(1 - progress, 2.5);
-                
+                let speed = 0.5 * Math.pow(1 - progress, 3.5);
                 ang += speed; 
-                const ptr = document.getElementById('pointer');
-                if (speed > 0.0001) {
-                    let hitFrequency = Math.sin(ang * 200); 
-                    ptr.style.transform = `translateY(-50%) rotate(${hitFrequency * 12 * (1-progress)}deg)`;
-                } else {
-                    ptr.style.transform = `translateY(-50%) rotate(0deg)`;
-                }
-                draw(); 
                 document.getElementById('live-counter').innerText = `SORTEANDO: ${getWinningNumber()}`;
             }
         } else if(s.isWaiting) {
-            if(now >= s.endTime && s.currentGiro < 3 && s.currentGiro !== 0) {
-                s.isWaiting = false;
-                s.currentGiro++; 
-                s.isSpinning = true; 
-                s.endTime = now + 60000; 
+            if(now >= s.endTime) {
+                if(s.currentGiro < 3) {
+                    s.isWaiting = false;
+                    s.currentGiro++; 
+                    s.isSpinning = true; 
+                    s.endTime = now + 15000; 
+                } else {
+                    s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; s.isWaiting = false; s.isSpinning = false;
+                }
                 change = true;
             }
         }
     });
-    if(change && currentU && currentU.u === "ADMIN_GLOBAL") save();
+    if(change) save();
     updateStatus();
 }
 
@@ -321,14 +298,13 @@ function setSala(i) {
 function comprarSeleccion() { 
     if(!currentU) return openM('auth'); 
     let s = salas[sSel], cost = mySelection.length * 0.5; 
-    if(s.isSpinning || s.isWaiting) return alert("Sorteo en curso");
+    if(s.isSpinning || s.isWaiting || s.currentGiro > 0) return alert("Sorteo en curso");
     if(cost > 0 && currentU.b >= cost) { 
         currentU.b -= cost;
-        historial.push({ type:'buy', u: currentU.u, sala: s.id, nums: [...mySelection], fecha: new Date().toLocaleString() });
         if(!s.sold) s.sold = [];
         mySelection.forEach(num => s.sold.push({n: num, u: currentU.u}));
         s.count = s.sold.length; mySelection = []; 
-        if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.endTime = Date.now() + 60000; } 
+        if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.endTime = Date.now() + 15000; } 
         save(); 
     } 
 }
@@ -340,19 +316,13 @@ function rand(n) {
     renderNumbers(); 
 }
 
-function showSent() {
-    const ov = document.getElementById('sent-overlay');
-    ov.style.display = 'flex';
-    setTimeout(() => { ov.style.display = 'none'; }, 2000);
-}
-
 function openM(t) { 
     const c = document.getElementById('modal-content'); document.getElementById('modal').style.display='flex'; 
     if(t==='auth') { c.innerHTML = `<h3>LOGIN</h3><input id="li-u" placeholder="Correo"><div class="password-wrapper"><input id="li-p" type="password" placeholder="Clave"><span class="eye-icon" onclick="togglePass('li-p')">👁️</span></div><button onclick="login()" style="width:100%; margin-top:10px;">ENTRAR</button><div class="auth-links"><span onclick="openM('reg')">Registrarse</span> | <span onclick="openM('recover')">Olvidé mi clave</span></div>`; }
     else if(t==='reg') { c.innerHTML = `<h3>REGISTRO</h3><p style="font-size:10px;">Solo @gmail.com - Clave min. 8 dígitos</p><input id="re-u" placeholder="Correo electrónico"><div class="password-wrapper"><input id="re-p" type="password" placeholder="Crear Clave"><span class="eye-icon" onclick="togglePass('re-p')">👁️</span></div><button onclick="register()" style="width:100%; margin-top:10px;">CREAR CUENTA</button><div class="auth-links"><span onclick="openM('auth')">Ya tengo cuenta</span></div>`; }
     else if(t==='recover') { c.innerHTML = `<h3>RECUPERAR</h3><p style="font-size:11px;">Ingresa tu correo para solicitar asistencia</p><input id="rec-u" placeholder="Tu correo"><button onclick="requestPass()" style="width:100%">ENVIAR SOLICITUD</button>`; }
-    else if(t==='dep') { c.innerHTML = `<h3>RECARGAR</h3><p style="font-size:10px; color:var(--primary);">Mínimo: $5.00 USD<br>Tiempo: 0 - 1H</p><div class="wallet-box">TRC20: <b>TFtX2tLdjqTnTdVAUfQ8YNACv6QUAK9LAy</b></div><input id="dep-amt" type="number" placeholder="Monto $"><div class="upload-box" onclick="document.getElementById('f-in').click()">+ COMPROBANTE<input type="file" id="f-in" hidden onchange="previewFile()"><img id="preview-img"></div><button onclick="notificarPago()" style="width:100%">ENVIAR</button>`; }
-    else if(t==='with') { c.innerHTML = `<h3>RETIRAR</h3><p style="font-size:10px; color:var(--red);">Mínimo: $10.00 USD<br>Tiempo: 0 - 1H</p><input id="wi-amt" type="number" placeholder="Monto $"><input id="wi-wallet" placeholder="Tu Billetera TRC20"><button onclick="solicitarRetiro()" style="width:100%; background:var(--red); color:#fff;">SOLICITAR RETIRO</button>`; }
+    else if(t==='dep') { c.innerHTML = `<h3>RECARGAR</h3><p style="font-size:10px; color:var(--primary);">Mínimo de depósito: $5.00 USD</p><div class="wallet-box">TRC20: <b>TFtX2tLdjqTnTdVAUfQ8YNACv6QUAK9LAy</b></div><input id="dep-amt" type="number" placeholder="Monto $"><div class="upload-box" onclick="document.getElementById('f-in').click()">+ COMPROBANTE<input type="file" id="f-in" hidden onchange="previewFile()"><img id="preview-img"></div><button onclick="notificarPago()" style="width:100%">ENVIAR</button>`; }
+    else if(t==='with') { c.innerHTML = `<h3>RETIRAR</h3><p style="font-size:10px; color:var(--red);">Mínimo de retiro: $10.00 USD</p><input id="wi-amt" type="number" placeholder="Monto $"><input id="wi-wallet" placeholder="Tu Billetera TRC20"><button onclick="solicitarRetiro()" style="width:100%; background:var(--red); color:#fff;">SOLICITAR RETIRO</button>`; }
     else if(t==='faq') { c.innerHTML = `<h3>PREGUNTAS FRECUENTES</h3><div style="text-align:left; font-size:12px;"><b>¿Qué es GLOBAL CASH TIME?</b><p>Plataforma de sorteos en tiempo real con 3 premios por sala.</p></div>`; }
     else if(t==='nosotros') { c.innerHTML = `<h3>NOSOTROS</h3><div style="text-align:left; font-size:12px;"><p>Transparencia y rapidez en cada sorteo global.</p></div>`; }
     else if(t==='contacto') { c.innerHTML = `<h3>CONTACTO</h3><div style="font-size:14px; margin:20px 0;">📧 globalcashtime@gmail.com</div>`; }
@@ -372,7 +342,7 @@ function openM(t) {
 function togglePass(id) { const el = document.getElementById(id); el.type = el.type === 'password' ? 'text' : 'password'; }
 function renderGrid() { const grid = document.getElementById('grid-salas'); grid.innerHTML = ""; salas.forEach((s, i) => { grid.innerHTML += `<div class="sala-card ${sSel===i?'active':''}" onclick="setSala(${i})"><b>SALA ${s.id}</b><div>${s.count}/200</div></div>`; }); }
 function renderNumbers() { 
-    const cont = document.getElementById('num-selector'); if(!cont) return; cont.innerHTML = ""; 
+    const cont = document.getElementById('num-selector'); cont.innerHTML = ""; 
     const s = salas[sSel]; if(!s) return;
     let takenNums = (s.sold || []).map(x => x.n); 
     for(let n=1; n<=200; n++) { 
@@ -383,9 +353,10 @@ function renderNumbers() {
 }
 function toggleNum(n) { if(mySelection.includes(n)) mySelection = mySelection.filter(x => x !== n); else mySelection.push(n); renderNumbers(); }
 function updateStatus() { 
-    let s = salas[sSel], st = document.getElementById('status-txt'); if(!s || !st) return;
+    let s = salas[sSel], st = document.getElementById('status-txt'); if(!s) return;
     if(s.isSpinning) st.innerText = `GIRO ${s.currentGiro} EN PROGRESO...`; 
     else if(s.isWaiting) st.innerText = s.lastWinner ? `GANADOR: #${s.lastWinner}` : "";
+    else st.innerText = "";
 }
 function showProfile() { document.getElementById('guest-btn').style.display='none'; document.getElementById('user-profile').style.display='block'; document.getElementById('prof-name').innerText = currentU.u; }
 function updateUI() { if(currentU && currentU.u !== "ADMIN_GLOBAL") document.getElementById('prof-balance').innerText = `$${currentU.b.toFixed(2)}`; }
@@ -407,16 +378,13 @@ function login() {
 
 function requestPass() {
     let u = document.getElementById('rec-u').value;
-    if(u) {
-        passReqs.push({ u: u, info: "Solicitud de recuperación de clave", fecha: new Date().toLocaleString() });
-        save(); closeM(); showSent();
-    }
+    if(u) { passReqs.push({ u: u, info: "Solicitud de recuperación", fecha: new Date().toLocaleString() }); save(); alert("ENVIADO"); closeM(); }
 }
 
 function previewFile() { const f = document.getElementById('f-in').files[0]; const r = new FileReader(); r.onloadend = () => { tempImg = r.result; document.getElementById('preview-img').src=tempImg; document.getElementById('preview-img').style.display='block'; }; if(f) r.readAsDataURL(f); }
 function notificarPago() { 
     let a = parseFloat(document.getElementById('dep-amt').value); 
-    if(a >= 5 && tempImg) { pendingDeps.push({ u: currentU.u, a: a, img: tempImg, id: Date.now() }); save(); closeM(); showSent(); } 
+    if(a >= 5 && tempImg) { pendingDeps.push({ u: currentU.u, a: a, img: tempImg, id: Date.now() }); save(); alert("Enviado"); closeM(); } 
 }
 
 function solicitarRetiro() {
@@ -425,14 +393,14 @@ function solicitarRetiro() {
     if(a >= 10 && currentU.b >= a && wal) {
         currentU.b -= a;
         pendingWiths.push({ u: currentU.u, a: a, wallet: wal, id: Date.now(), fecha: new Date().toLocaleString() });
-        save(); closeM(); showSent();
+        save(); alert("Solicitado"); closeM();
     }
 }
 
 function renderAdmin() { 
-    const div = document.getElementById('pending-deps'); div.setAttribute('data-view', 'notif'); div.innerHTML = "<h4>NOTIFICACIONES</h4>"; 
+    const div = document.getElementById('pending-deps'); div.innerHTML = "<h4>NOTIFICACIONES</h4>"; 
     pendingDeps.forEach((p, idx) => { 
-        div.innerHTML += `<div class="admin-notif"><b>DEPÓSITO: ${p.u} ($${p.a})</b><br><img src="${p.img}" style="width:100%; max-width:200px; cursor:pointer; margin:5px 0; border:1px solid #444;" onclick="window.open(this.src)"><br>
+        div.innerHTML += `<div class="admin-notif"><b>DEPÓSITO: ${p.u} ($${p.a})</b><br><img src="${p.img}" style="width:100%; max-width:200px; margin:5px 0;"><br>
             <button onclick="aprobar(${idx})">Aprobar</button> 
             <button onclick="rechazarDep(${idx})" style="background:var(--red); color:#fff;">Rechazar</button>
         </div>`; 
@@ -446,46 +414,32 @@ function renderAdmin() {
 }
 
 function renderUserDB() {
-    const div = document.getElementById('pending-deps'); div.setAttribute('data-view', 'db'); div.innerHTML = "<h4>BASE DE DATOS COMPLETA</h4>";
+    const div = document.getElementById('pending-deps'); div.innerHTML = "<h4>BASE DE DATOS</h4>";
     users.forEach((u, idx) => { 
-        div.innerHTML += `<div class="admin-notif" style="border-left-color:var(--link);">
-            <div style="margin-bottom:8px;"><b>👤 ${u.u}</b><br>🔑 Pass: <span style="color:var(--primary)">${u.p}</span><br>💰 Saldo: <b style="color:var(--green)">$${u.b.toFixed(2)}</b></div>
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px;">
-                <div style="display:flex; flex-direction:column; gap:3px;">
-                    <button onclick="editBal(${idx}, 0.5)" style="background:var(--green); color:#000; padding:4px; font-size:9px;">+ $0.50</button>
-                    <button onclick="editBal(${idx}, 5)" style="background:var(--green); color:#000; padding:4px; font-size:9px;">+ $5.00</button>
-                    <button onclick="editBal(${idx}, 10)" style="background:var(--green); color:#000; padding:4px; font-size:9px;">+ $10.00</button>
-                </div>
-                <div style="display:flex; flex-direction:column; gap:3px;">
-                    <button onclick="editBal(${idx}, -0.5)" style="background:var(--red); color:#fff; padding:4px; font-size:9px;">- $0.50</button>
-                    <button onclick="editBal(${idx}, -5)" style="background:var(--red); color:#fff; padding:4px; font-size:9px;">- $5.00</button>
-                    <button onclick="editBal(${idx}, -10)" style="background:var(--red); color:#fff; padding:4px; font-size:9px;">- $10.00</button>
-                </div>
-            </div>
+        div.innerHTML += `<div class="admin-notif">👤 ${u.u} | 💰 $${u.b.toFixed(2)}<br>
+            <button onclick="editBal(${idx}, 1)">+ $1</button> <button onclick="editBal(${idx}, -1)">- $1</button>
         </div>`; 
     });
 }
 
 function renderPassReqs() {
-    const div = document.getElementById('pending-deps'); div.setAttribute('data-view', 'pass'); div.innerHTML = "<h4>SOLICITUDES CLAVES</h4>";
-    passReqs.forEach((r, idx) => { div.innerHTML += `<div class="admin-notif"><b>De: ${r.u}</b><br>${r.info}<br><small>${r.fecha}</small><br><button onclick="passReqs.splice(${idx},1); save();">Eliminar Solicitud</button></div>`; });
+    const div = document.getElementById('pending-deps'); div.innerHTML = "<h4>SOLICITUDES CLAVES</h4>";
+    passReqs.forEach((r, idx) => { div.innerHTML += `<div class="admin-notif"><b>De: ${r.u}</b><br>${r.info}<br><button onclick="passReqs.splice(${idx},1); save();">Eliminar</button></div>`; });
 }
 
 function editBal(idx, amt) { users[idx].b += amt; if(users[idx].b < 0) users[idx].b = 0; save(); }
 function aprobar(idx) { 
     let p = pendingDeps[idx]; let u = users.find(x => x.u === p.u); 
-    if(u) { u.b += p.a; historial.push({ type: 'sys', u: p.u, msg: `Depósito Aprobado: +$${p.a}`, sala: 'SISTEMA', fecha: new Date().toLocaleString() }); } 
-    pendingDeps.splice(idx, 1); save(); renderAdmin();
+    if(u) u.b += p.a; pendingDeps.splice(idx, 1); save(); 
 }
-function rechazarDep(idx) { pendingDeps.splice(idx, 1); save(); renderAdmin(); }
-function aprobarWith(idx) { pendingWiths.splice(idx, 1); save(); renderAdmin(); }
+function rechazarDep(idx) { pendingDeps.splice(idx, 1); save(); }
+function aprobarWith(idx) { pendingWiths.splice(idx, 1); save(); }
 function rechazarWith(idx) {
     let w = pendingWiths[idx]; let u = users.find(x => x.u === w.u);
-    if(u) u.b += w.a; 
-    pendingWiths.splice(idx, 1); save(); renderAdmin();
+    if(u) u.b += w.a; pendingWiths.splice(idx, 1); save();
 }
 </script>
 
+<div style="font-size: 8px; color: #222; width: 100%; text-align: center;">Todos los derechos reservados.</div>
 </body>
 </html>
-
