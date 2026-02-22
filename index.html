@@ -252,12 +252,12 @@ function logic() {
             let progress = Math.min(1, (duration - timeLeft) / duration);
             let speed = 0.5 * Math.pow(1 - progress, 2.5); 
 
-            if(timeLeft <= 0 || speed <= 0) {
-                // DETENCIÓN TOTAL: Velocidad 0
+            if(timeLeft <= 0 || speed <= 0.0001) {
+                // DETENCION TOTAL: La ruleta se detiene primero.
                 const finalWinner = getWinningNumber();
                 s.isSpinning = false; 
                 s.isWaiting = true; 
-                s.endTime = now + 3000; // ESPERA 3s CON EL GANADOR EN PANTALLA
+                s.endTime = now + 3000; // Demora de 3 segundos ANTES de anunciar y saltar al siguiente
                 s.lastWinner = finalWinner;
                 
                 let winnerData = (s.sold || []).find(x => x.n === s.lastWinner);
@@ -269,7 +269,7 @@ function logic() {
                 historial.push({ type:'win', u: winnerData ? winnerData.u : 'Nadie', sala: s.id, ganador: s.lastWinner, premio: premioMonto, fecha: new Date().toLocaleString() });
                 
                 if(i === sSel) {
-                    document.getElementById('live-counter').innerText = ""; 
+                    document.getElementById('live-counter').innerText = ""; // Limpia "SORTEANDO"
                     document.getElementById('pointer').style.transform = `translateY(-50%) rotate(0deg)`;
                 }
                 change = true;
@@ -287,7 +287,7 @@ function logic() {
                 draw(); 
             }
         } else if(s.isWaiting) {
-            // MOSTRAR GANADOR SOLO CUANDO LA RULETA ESTÁ QUIETA
+            // SOLO AQUÍ APARECE EL GANADOR (Ruleta ya detenida por completo)
             if(i === sSel && s.lastWinner) {
                 document.getElementById('live-counter').innerText = `GANADOR: #${s.lastWinner}`;
             }
@@ -298,6 +298,7 @@ function logic() {
                     s.currentGiro++; 
                     s.isSpinning = true; 
                     s.endTime = now + 60000; 
+                    if(i === sSel) document.getElementById('live-counter').innerText = ""; // Limpiar antes del nuevo giro
                 } else {
                     s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; s.isWaiting = false; s.isSpinning = false;
                     if(i === sSel) { 
