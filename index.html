@@ -152,7 +152,6 @@
 let users = [], currentU = null, ang = 0, sSel = 0, mySelection = [], tempImg = "";
 let pendingDeps = [], pendingWiths = [], passReqs = [], historial = [], salas = [];
 
-// 5: Números aleatorios en la ruleta
 const wheelNumbers = Array.from({length: 200}, (_, i) => i + 1).sort(() => Math.random() - 0.5); 
 const PREMIOS = { 1: 5, 2: 15, 3: 50 };
 
@@ -181,13 +180,6 @@ function initApp() {
                 id: i+1, count: 0, sold: [], isSpinning: false, isWaiting: false, currentGiro: 0, endTime: 0, lastWinner: null 
             }));
         }
-        
-        // RESTABLECER TODAS LAS SALAS AL CARGAR PARA EVITAR BLOQUEOS
-        newSalas.forEach((s) => {
-            if(s.count >= 200 && !s.isSpinning && !s.isWaiting) {
-                s.count = 0; s.sold = []; s.currentGiro = 0; s.isSpinning = false; s.isWaiting = false; s.lastWinner = null;
-            }
-        });
 
         salas = newSalas;
         const saved = localStorage.getItem('GCT_SESSION');
@@ -201,9 +193,8 @@ function initApp() {
         renderGrid();
         renderNumbers();
         document.getElementById('sala-txt').innerText = `SALA #${salas[sSel]?.id || (sSel+1)}`;
-        updateUI(); // 4: Tiempo real de cuentas al actualizar DB
-        
-        // 3: Refrescar vistas admin si están abiertas para que desaparezcan aprobados/rechazados
+        updateUI();
+
         const adminDiv = document.getElementById('pending-deps');
         if(adminDiv && adminDiv.innerHTML !== "") {
             const view = adminDiv.getAttribute('data-view');
@@ -253,22 +244,20 @@ function logic() {
                 
                 if(s.currentGiro === 3) {
                     setTimeout(() => {
-                        // REESTABLECER SALA COMPLETA
+                        // RESTABLECIMIENTO INMEDIATO AUTOMÁTICO TRAS 3 SEGUNDOS
                         s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; s.isWaiting = false; s.isSpinning = false;
                         if(i === sSel) {
                             document.getElementById('live-counter').innerText = "";
                             document.getElementById('status-txt').innerText = "";
                         }
                         save(); 
-                    }, 5000);
+                    }, 3000);
                 }
                 change = true;
             } else if(i === sSel) {
-                // 7 y 8: Duración 60s, un solo lado, desaceleración lenta natural
                 let duration = 60000; 
                 let elapsed = duration - timeLeft;
                 let progress = Math.min(1, elapsed / duration);
-                // Función de desaceleración suave (Cubic Out)
                 let speed = 0.4 * Math.pow(1 - progress, 2); 
                 
                 ang += speed; 
@@ -287,7 +276,7 @@ function logic() {
                 s.isWaiting = false;
                 s.currentGiro++; 
                 s.isSpinning = true; 
-                s.endTime = now + 60000; // 8: 60 segundos por giro
+                s.endTime = now + 60000; 
                 change = true;
             }
         }
@@ -360,7 +349,8 @@ function openM(t) {
         displayHist.reverse().map(h => {
             let salaTag = `<span style="color:var(--primary)">[SALA ${h.sala}]</span>`;
             let msg = h.type === 'buy' ? `${salaTag} <b style="color:var(--primary)">${h.u}</b> compró: [${h.nums.join(', ')}]` : 
-                      h.type === 'win' ? `${salaTag} <b style="color:var(--green)">GANADOR: ${h.u}</b> (Nº${h.ganador}) - $${h.premio}` : `${salaTag} ${h.msg || ""}`;
+                      h.type === 'win' ? `${salaTag} <b style="color:var(--green)">GANADOR: ${h.u}</b> (Nº${h.ganador}) - $${h.premio}` : 
+                      h.type === 'sys' ? `<b style="color:${h.msg.includes('Aprobado')?'var(--green)':'var(--red)'}">[SISTEMA]</b> ${h.u}: ${h.msg}` : `${salaTag} ${h.msg || ""}`;
             return `<div style="border-bottom:1px solid #333; padding:8px 5px;">${msg}<br><small style="opacity:0.6;">${h.fecha}</small></div>`;
         }).join('') + `</div>`; 
     }
@@ -390,7 +380,6 @@ function updateUI() { if(currentU && currentU.u !== "ADMIN_GLOBAL") { let liveU 
 function logout() { localStorage.removeItem('GCT_SESSION'); location.reload(); }
 function closeM() { document.getElementById('modal').style.display='none'; tempImg=""; }
 
-// 2: Mostrar ENVIADO por 2 segundos y cerrar
 function showSentMsg() {
     const c = document.getElementById('modal-content');
     c.innerHTML = `<h2 style="color:var(--green); margin: 50px 0;">ENVIADO</h2>`;
@@ -482,11 +471,20 @@ function aprobar(idx) {
     if(u) { u.b += p.a; historial.push({ type: 'sys', u: p.u, msg: `Depósito Aprobado: +$${p.a}`, sala: 'SISTEMA', fecha: new Date().toLocaleString() }); } 
     pendingDeps.splice(idx, 1); save(); 
 }
-function rechazarDep(idx) { pendingDeps.splice(idx, 1); save(); }
-function aprobarWith(idx) { pendingWiths.splice(idx, 1); save(); }
+function rechazarDep(idx) { 
+    let p = pendingDeps[idx];
+    historial.push({ type: 'sys', u: p.u, msg: `Depósito RECHAZADO: $${p.a}`, sala: 'SISTEMA', fecha: new Date().toLocaleString() });
+    pendingDeps.splice(idx, 1); save(); 
+}
+function aprobarWith(idx) { 
+    let w = pendingWiths[idx];
+    historial.push({ type: 'sys', u: w.u, msg: `Retiro Aprobado: -$${w.a}`, sala: 'SISTEMA', fecha: new Date().toLocaleString() });
+    pendingWiths.splice(idx, 1); save(); 
+}
 function rechazarWith(idx) {
     let w = pendingWiths[idx]; let u = users.find(x => x.u === w.u);
     if(u) u.b += w.a; 
+    historial.push({ type: 'sys', u: w.u, msg: `Retiro RECHAZADO: $${w.a}`, sala: 'SISTEMA', fecha: new Date().toLocaleString() });
     pendingWiths.splice(idx, 1); save();
 }
 </script>
