@@ -249,7 +249,6 @@ function logic() {
         if(s.isSpinning) {
             let timeLeft = s.endTime - now;
             if(timeLeft <= 0) {
-                // Sincronización absoluta: El número ganador es el que el ángulo indica en este instante
                 const finalWinner = getWinningNumber();
                 s.isSpinning = false; 
                 s.isWaiting = true; 
@@ -265,21 +264,21 @@ function logic() {
                 historial.push({ type:'win', u: winnerData ? winnerData.u : 'Nadie', sala: s.id, ganador: s.lastWinner, premio: premioMonto, fecha: new Date().toLocaleString() });
                 change = true;
             } else if(i === sSel) {
-                let duration = 15000; // Según instrucciones: 15 seg por giro
-                let elapsed = duration - (s.endTime - 60000 + duration - now); // Ajuste de tiempo
+                let duration = 60000; 
                 let progress = Math.min(1, (duration - timeLeft) / duration);
-                let speed = 0.4 * Math.pow(1 - progress, 3); 
+                // Desaceleración progresiva muy lenta (Función de potencia para suavidad)
+                let speed = 0.5 * Math.pow(1 - progress, 2.5); 
                 ang += speed; 
 
                 const ptr = document.getElementById('pointer');
                 if (speed > 0.0001) { 
+                    // Flecha reacciona según la velocidad actual del giro
                     let hitFrequency = Math.sin(ang * 200); 
-                    ptr.style.transform = `translateY(-50%) rotate(${hitFrequency * 10 * (1-progress)}deg)`; 
+                    ptr.style.transform = `translateY(-50%) rotate(${hitFrequency * 8 * (1-progress)}deg)`; 
                 } else { 
                     ptr.style.transform = `translateY(-50%) rotate(0deg)`; 
                 }
                 draw(); 
-                // Texto sincronizado con el ángulo real
                 document.getElementById('live-counter').innerText = `SORTEANDO: ${getWinningNumber()}`;
             }
         } else if(s.isWaiting) {
@@ -288,7 +287,7 @@ function logic() {
                     s.isWaiting = false; 
                     s.currentGiro++; 
                     s.isSpinning = true; 
-                    s.endTime = now + 15000; 
+                    s.endTime = now + 60000; 
                 } else {
                     s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; s.isWaiting = false; s.isSpinning = false;
                     if(i === sSel) { 
@@ -332,7 +331,7 @@ function comprarSeleccion() {
     if(cost > 0 && currentU.b >= cost) { 
         currentU.b -= cost; historial.push({ type:'buy', u: currentU.u, sala: s.id, nums: [...mySelection], fecha: new Date().toLocaleString() });
         if(!s.sold) s.sold = []; mySelection.forEach(num => s.sold.push({n: num, u: currentU.u})); s.count = s.sold.length; mySelection = []; 
-        if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.endTime = Date.now() + 15000; } save(); renderNumbers();
+        if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.endTime = Date.now() + 60000; } save(); renderNumbers();
     } 
 }
 
@@ -413,4 +412,3 @@ function rechazarWith(idx) { let w = pendingWiths[idx]; let u = users.find(x => 
 
 </body>
 </html>
-
