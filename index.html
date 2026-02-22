@@ -249,10 +249,11 @@ function logic() {
         if(s.isSpinning) {
             let timeLeft = s.endTime - now;
             if(timeLeft <= 0) {
+                // RULETA DETENIDA: Sincronización absoluta
                 const finalWinner = getWinningNumber();
                 s.isSpinning = false; 
                 s.isWaiting = true; 
-                s.endTime = now + 5000; 
+                s.endTime = now + 3000; // DEMORA 3 SEGUNDOS EN EL ANUNCIO
                 s.lastWinner = finalWinner;
                 
                 let winnerData = (s.sold || []).find(x => x.n === s.lastWinner);
@@ -262,26 +263,33 @@ function logic() {
                     if(winUser) { winUser.b += premioMonto; }
                 }
                 historial.push({ type:'win', u: winnerData ? winnerData.u : 'Nadie', sala: s.id, ganador: s.lastWinner, premio: premioMonto, fecha: new Date().toLocaleString() });
+                
+                // Limpiar texto "SORTEANDO" al detenerse
+                if(i === sSel) document.getElementById('live-counter').innerText = "";
                 change = true;
             } else if(i === sSel) {
                 let duration = 60000; 
                 let progress = Math.min(1, (duration - timeLeft) / duration);
-                // Desaceleración progresiva muy lenta (Función de potencia para suavidad)
                 let speed = 0.5 * Math.pow(1 - progress, 2.5); 
                 ang += speed; 
 
                 const ptr = document.getElementById('pointer');
                 if (speed > 0.0001) { 
-                    // Flecha reacciona según la velocidad actual del giro
                     let hitFrequency = Math.sin(ang * 200); 
                     ptr.style.transform = `translateY(-50%) rotate(${hitFrequency * 8 * (1-progress)}deg)`; 
+                    document.getElementById('live-counter').innerText = `SORTEANDO: ${getWinningNumber()}`;
                 } else { 
-                    ptr.style.transform = `translateY(-50%) rotate(0deg)`; 
+                    ptr.style.transform = `translateY(-50%) rotate(0deg)`;
+                    document.getElementById('live-counter').innerText = "";
                 }
                 draw(); 
-                document.getElementById('live-counter').innerText = `SORTEANDO: ${getWinningNumber()}`;
             }
         } else if(s.isWaiting) {
+            // ANUNCIO DEL GANADOR DURANTE 3 SEGUNDOS
+            if(i === sSel && s.lastWinner) {
+                document.getElementById('live-counter').innerText = `GANADOR: #${s.lastWinner}`;
+            }
+
             if(now >= s.endTime) { 
                 if (s.currentGiro < 3) {
                     s.isWaiting = false; 
@@ -378,7 +386,7 @@ function renderNumbers() {
     } document.getElementById('prog-txt').innerText = `${s.count} / 200 Vendidos`; 
 }
 function toggleNum(n) { if(mySelection.includes(n)) mySelection = mySelection.filter(x => x !== n); else mySelection.push(n); renderNumbers(); }
-function updateStatus() { let s = salas[sSel], st = document.getElementById('status-txt'); if(!s) return; if(s.isSpinning) st.innerText = `GIRO ${s.currentGiro} EN PROGRESO...`; else if(s.isWaiting) st.innerText = s.lastWinner ? `GANADOR: #${s.lastWinner}` : ""; }
+function updateStatus() { let s = salas[sSel], st = document.getElementById('status-txt'); if(!s) return; if(s.isSpinning) st.innerText = `GIRO ${s.currentGiro} EN PROGRESO...`; else if(s.isWaiting) st.innerText = ""; }
 function showProfile() { document.getElementById('guest-btn').style.display='none'; document.getElementById('user-profile').style.display='block'; document.getElementById('prof-name').innerText = currentU.u; }
 function updateUI() { if(currentU && currentU.u !== "ADMIN_GLOBAL") { let liveU = users.find(x => x.u === currentU.u); if(liveU) { currentU.b = liveU.b; document.getElementById('prof-balance').innerText = `$${currentU.b.toFixed(2)}`; } } }
 function logout() { localStorage.removeItem('GCT_SESSION'); location.reload(); }
