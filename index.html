@@ -242,7 +242,7 @@ function logic() {
                 historial.push({ type:'win', u: winnerData ? winnerData.u : 'Nadie', sala: s.id, ganador: s.lastWinner, premio: premioMonto, fecha: new Date().toLocaleString() });
                 
                 if(s.currentGiro === 3) {
-                    // Esperar 2 segundos adicionales tras mostrar el último ganador antes de resetear
+                    // Restablecimiento inmediato después de los 5 segundos del último premio
                     setTimeout(() => {
                         s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; s.isWaiting = false; s.isSpinning = false;
                         if(i === sSel) { 
@@ -252,11 +252,11 @@ function logic() {
                             renderGrid();
                         }
                         save(); 
-                    }, 2000);
+                    }, 5000);
                 }
                 change = true;
             } else if(i === sSel) {
-                let duration = 15000; let elapsed = duration - timeLeft; let progress = Math.min(1, elapsed / duration);
+                let duration = 60000; let elapsed = duration - timeLeft; let progress = Math.min(1, elapsed / duration);
                 let speed = 0.5 * Math.pow(1 - progress, 2); 
                 ang += speed; 
                 const ptr = document.getElementById('pointer');
@@ -269,7 +269,13 @@ function logic() {
                 draw(); document.getElementById('live-counter').innerText = `SORTEANDO: ${getWinningNumber()}`;
             }
         } else if(s.isWaiting) {
-            if(now >= s.endTime && s.currentGiro < 3 && s.currentGiro !== 0) { s.isWaiting = false; s.currentGiro++; s.isSpinning = true; s.endTime = now + 15000; change = true; }
+            if(now >= s.endTime && s.currentGiro < 3 && s.currentGiro !== 0) { 
+                s.isWaiting = false; 
+                s.currentGiro++; 
+                s.isSpinning = true; 
+                s.endTime = now + 60000; 
+                change = true; 
+            }
         }
     });
     if(change && currentU && currentU.u === "ADMIN_GLOBAL") save();
@@ -294,17 +300,17 @@ function draw() {
 function setSala(i) { sSel = i; localStorage.setItem('GCT_S_SEL', i); mySelection = []; document.getElementById('sala-txt').innerText = `SALA #${salas[i]?.id || (i+1)}`; document.getElementById('live-counter').innerText = ""; document.getElementById('status-txt').innerText = ""; renderGrid(); renderNumbers(); }
 
 function comprarSeleccion() { 
-    if(!currentU) return openM('auth'); let s = salas[sSel], cost = mySelection.length * 0.5; if(s.isSpinning || s.isWaiting || s.currentGiro !== 0) return alert("Sorteo en curso");
+    if(!currentU) return openM('auth'); let s = salas[sSel], cost = mySelection.length * 0.5; if(s.isSpinning || s.isWaiting) return alert("Sorteo en curso");
     if(cost > 0 && currentU.b >= cost) { 
         currentU.b -= cost; historial.push({ type:'buy', u: currentU.u, sala: s.id, nums: [...mySelection], fecha: new Date().toLocaleString() });
         if(!s.sold) s.sold = []; mySelection.forEach(num => s.sold.push({n: num, u: currentU.u})); s.count = s.sold.length; mySelection = []; 
-        if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.endTime = Date.now() + 15000; } save(); renderNumbers();
+        if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.endTime = Date.now() + 60000; } save(); renderNumbers();
     } 
 }
 
 function rand(n) { 
     let s = salas[sSel]; mySelection = []; let avail = []; let takenNums = (s.sold || []).map(x => x.n);
-    for(let i=1; i<=200; i++) if(!takenNums.includes(i)) avail.push(i); 
+    for(let n=1; n<=200; n++) if(!takenNums.includes(n)) avail.push(n); 
     for(let i=0; i<n && avail.length>0; i++) mySelection.push(avail.splice(Math.floor(Math.random()*avail.length),1)[0]); 
     renderNumbers(); 
 }
