@@ -143,13 +143,11 @@
         <span onclick="openM('nosotros')">Nosotros</span>
         <span onclick="openM('contacto')">Contacto</span>
     </div>
-    <div style="margin-top:15px; opacity:0.5;">Todos los derechos reservados.</div>
 </footer>
 
 <div id="modal" class="modal"><div id="modal-content" class="section-box" style="width:90%; max-width:380px;"></div></div>
 
 <script>
-// RESTABLECIMIENTO DE TABLAS (Salas vacías e historial limpio)
 let users = [], currentU = null, ang = 0, sSel = 0, mySelection = [], tempImg = "";
 let pendingDeps = [], pendingWiths = [], passReqs = [], historial = []; 
 let salas = Array.from({length: 20}, (_, i) => ({ 
@@ -251,7 +249,7 @@ function logic() {
                 }
                 change = true;
             } else if(i === sSel) {
-                let duration = 60000; let elapsed = duration - timeLeft; let progress = Math.min(1, elapsed / duration);
+                let duration = 15000; let elapsed = duration - timeLeft; let progress = Math.min(1, elapsed / duration);
                 let speed = 0.4 * Math.pow(1 - progress, 2); ang += speed; 
                 const ptr = document.getElementById('pointer');
                 if (speed > 0.0001) { let hitFrequency = Math.sin(ang * 200); ptr.style.transform = `translateY(-50%) rotate(${hitFrequency * 10 * (1-progress)}deg)`; }
@@ -259,7 +257,7 @@ function logic() {
                 draw(); document.getElementById('live-counter').innerText = `SORTEANDO: ${getWinningNumber()}`;
             }
         } else if(s.isWaiting) {
-            if(now >= s.endTime && s.currentGiro < 3 && s.currentGiro !== 0) { s.isWaiting = false; s.currentGiro++; s.isSpinning = true; s.endTime = now + 60000; change = true; }
+            if(now >= s.endTime && s.currentGiro < 3 && s.currentGiro !== 0) { s.isWaiting = false; s.currentGiro++; s.isSpinning = true; s.endTime = now + 15000; change = true; }
         }
     });
     if(change && currentU && currentU.u === "ADMIN_GLOBAL") save();
@@ -288,7 +286,7 @@ function comprarSeleccion() {
     if(cost > 0 && currentU.b >= cost) { 
         currentU.b -= cost; historial.push({ type:'buy', u: currentU.u, sala: s.id, nums: [...mySelection], fecha: new Date().toLocaleString() });
         if(!s.sold) s.sold = []; mySelection.forEach(num => s.sold.push({n: num, u: currentU.u})); s.count = s.sold.length; mySelection = []; 
-        if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.endTime = Date.now() + 60000; } save(); 
+        if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.endTime = Date.now() + 15000; } save(); 
     } 
 }
 
