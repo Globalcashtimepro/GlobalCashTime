@@ -233,9 +233,7 @@ function logic() {
         if(s.isSpinning) {
             let timeLeft = s.endTime - now;
             if(timeLeft <= 0) {
-                s.isSpinning = false; 
-                s.isWaiting = true; 
-                s.endTime = now + 5000; // 5 segundos de espera al detenerse
+                s.isSpinning = false; s.isWaiting = true; s.endTime = now + 5000;
                 s.lastWinner = getWinningNumber();
                 let winnerData = (s.sold || []).find(x => x.n === s.lastWinner);
                 let premioMonto = PREMIOS[s.currentGiro];
@@ -245,25 +243,19 @@ function logic() {
                 }
                 historial.push({ type:'win', u: winnerData ? winnerData.u : 'Nadie', sala: s.id, ganador: s.lastWinner, premio: premioMonto, fecha: new Date().toLocaleString() });
                 
-                // Si es el último giro (Giro 3), reset automático después de los 5 segundos de espera
                 if(s.currentGiro === 3) {
                     setTimeout(() => {
-                        s.currentGiro = 0; 
-                        s.count = 0; 
-                        s.sold = []; 
-                        s.lastWinner = null; 
-                        s.isWaiting = false; 
-                        s.isSpinning = false;
+                        s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; s.isWaiting = false; s.isSpinning = false;
                         if(i === sSel) {
                             document.getElementById('live-counter').innerText = "";
                             document.getElementById('status-txt').innerText = "";
                         }
                         save(); 
-                    }, 5000); 
+                    }, 3000);
                 }
                 change = true;
             } else if(i === sSel) {
-                let duration = 15000; // Giro de 15 segundos
+                let duration = 60000;
                 let elapsed = duration - timeLeft;
                 let progress = Math.min(1, elapsed / duration);
                 let speed = 0.5 * Math.pow(1 - progress, 3.5);
@@ -284,7 +276,7 @@ function logic() {
                 s.isWaiting = false;
                 s.currentGiro++; 
                 s.isSpinning = true; 
-                s.endTime = now + 15000; // Siguiente giro de 15 segundos
+                s.endTime = now + 60000; 
                 change = true;
             }
         }
@@ -329,7 +321,7 @@ function comprarSeleccion() {
         if(!s.sold) s.sold = [];
         mySelection.forEach(num => s.sold.push({n: num, u: currentU.u}));
         s.count = s.sold.length; mySelection = []; 
-        if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.endTime = Date.now() + 15000; } 
+        if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.endTime = Date.now() + 60000; } 
         save(); 
     } 
 }
