@@ -194,7 +194,6 @@ function initApp() {
             if(saved === "ADMIN_GLOBAL") { 
                 currentU = {u:"ADMIN_GLOBAL", b:0}; 
                 document.getElementById('admin-panel').style.display='block';
-                // Actualizar vistas administrativas si están abiertas
                 const div = document.getElementById('pending-deps');
                 if(div.getAttribute('data-view') === 'notif') renderAdmin();
                 if(div.getAttribute('data-view') === 'db') renderUserDB();
@@ -235,6 +234,12 @@ function createRain() {
     }
 }
 
+function getWinningNumber() {
+    const normalizedAng = (ang % (Math.PI * 2) + (Math.PI * 2)) % (Math.PI * 2);
+    const index = Math.floor(((Math.PI * 2 - normalizedAng) / (Math.PI * 2)) * 200) % 200;
+    return wheelNumbers[index];
+}
+
 function logic() {
     const now = Date.now();
     let change = false;
@@ -244,6 +249,7 @@ function logic() {
         if(s.isSpinning) {
             let timeLeft = s.endTime - now;
             if(timeLeft <= 0) {
+                // Sincronización absoluta: El número ganador es el que el ángulo indica en este instante
                 const finalWinner = getWinningNumber();
                 s.isSpinning = false; 
                 s.isWaiting = true; 
@@ -259,9 +265,9 @@ function logic() {
                 historial.push({ type:'win', u: winnerData ? winnerData.u : 'Nadie', sala: s.id, ganador: s.lastWinner, premio: premioMonto, fecha: new Date().toLocaleString() });
                 change = true;
             } else if(i === sSel) {
-                let duration = 60000; 
-                let elapsed = duration - timeLeft;
-                let progress = Math.min(1, elapsed / duration);
+                let duration = 15000; // Según instrucciones: 15 seg por giro
+                let elapsed = duration - (s.endTime - 60000 + duration - now); // Ajuste de tiempo
+                let progress = Math.min(1, (duration - timeLeft) / duration);
                 let speed = 0.4 * Math.pow(1 - progress, 3); 
                 ang += speed; 
 
@@ -273,6 +279,7 @@ function logic() {
                     ptr.style.transform = `translateY(-50%) rotate(0deg)`; 
                 }
                 draw(); 
+                // Texto sincronizado con el ángulo real
                 document.getElementById('live-counter').innerText = `SORTEANDO: ${getWinningNumber()}`;
             }
         } else if(s.isWaiting) {
@@ -281,7 +288,7 @@ function logic() {
                     s.isWaiting = false; 
                     s.currentGiro++; 
                     s.isSpinning = true; 
-                    s.endTime = now + 60000; 
+                    s.endTime = now + 15000; 
                 } else {
                     s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; s.isWaiting = false; s.isSpinning = false;
                     if(i === sSel) { 
@@ -309,12 +316,6 @@ function resetSalasManual() {
     }
 }
 
-function getWinningNumber() {
-    const normalizedAng = (ang % (Math.PI * 2) + (Math.PI * 2)) % (Math.PI * 2);
-    const index = Math.floor(((Math.PI * 2 - normalizedAng) / (Math.PI * 2)) * 200) % 200;
-    return wheelNumbers[index];
-}
-
 function draw() {
     const canvas = document.getElementById('wheel'), ctx = canvas.getContext('2d'), colors = ['#3366FF', '#FF3333', '#FFCC00', '#009933'];
     const arc = (Math.PI*2)/200; ctx.clearRect(0,0,600,600);
@@ -331,7 +332,7 @@ function comprarSeleccion() {
     if(cost > 0 && currentU.b >= cost) { 
         currentU.b -= cost; historial.push({ type:'buy', u: currentU.u, sala: s.id, nums: [...mySelection], fecha: new Date().toLocaleString() });
         if(!s.sold) s.sold = []; mySelection.forEach(num => s.sold.push({n: num, u: currentU.u})); s.count = s.sold.length; mySelection = []; 
-        if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.endTime = Date.now() + 60000; } save(); renderNumbers();
+        if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.endTime = Date.now() + 15000; } save(); renderNumbers();
     } 
 }
 
