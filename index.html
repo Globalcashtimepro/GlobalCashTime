@@ -242,21 +242,25 @@ function logic() {
                 historial.push({ type:'win', u: winnerData ? winnerData.u : 'Nadie', sala: s.id, ganador: s.lastWinner, premio: premioMonto, fecha: new Date().toLocaleString() });
                 
                 if(s.currentGiro === 3) {
+                    // Restablecimiento inmediato después de los 5 segundos del último premio
                     setTimeout(() => {
                         s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; s.isWaiting = false; s.isSpinning = false;
-                        if(i === sSel) { document.getElementById('live-counter').innerText = ""; document.getElementById('status-txt').innerText = ""; renderNumbers(); }
+                        if(i === sSel) { 
+                            document.getElementById('live-counter').innerText = ""; 
+                            document.getElementById('status-txt').innerText = ""; 
+                            renderNumbers(); 
+                            renderGrid();
+                        }
                         save(); 
                     }, 5000);
                 }
                 change = true;
             } else if(i === sSel) {
                 let duration = 60000; let elapsed = duration - timeLeft; let progress = Math.min(1, elapsed / duration);
-                // Desaceleración natural: velocidad inicial alta que cae a cero al final (siempre a la derecha)
                 let speed = 0.5 * Math.pow(1 - progress, 2); 
                 ang += speed; 
                 const ptr = document.getElementById('pointer');
                 if (speed > 0.0001) { 
-                    // El puntero vibra siguiendo el ritmo de la ruleta
                     let hitFrequency = Math.sin(ang * 200); 
                     ptr.style.transform = `translateY(-50%) rotate(${hitFrequency * 12 * (1-progress)}deg)`; 
                 } else { 
@@ -265,7 +269,13 @@ function logic() {
                 draw(); document.getElementById('live-counter').innerText = `SORTEANDO: ${getWinningNumber()}`;
             }
         } else if(s.isWaiting) {
-            if(now >= s.endTime && s.currentGiro < 3 && s.currentGiro !== 0) { s.isWaiting = false; s.currentGiro++; s.isSpinning = true; s.endTime = now + 60000; change = true; }
+            if(now >= s.endTime && s.currentGiro < 3 && s.currentGiro !== 0) { 
+                s.isWaiting = false; 
+                s.currentGiro++; 
+                s.isSpinning = true; 
+                s.endTime = now + 60000; 
+                change = true; 
+            }
         }
     });
     if(change && currentU && currentU.u === "ADMIN_GLOBAL") save();
@@ -300,7 +310,7 @@ function comprarSeleccion() {
 
 function rand(n) { 
     let s = salas[sSel]; mySelection = []; let avail = []; let takenNums = (s.sold || []).map(x => x.n);
-    for(let i=1; i<=200; i++) if(!takenNums.includes(i)) avail.push(i); 
+    for(let n=1; n<=200; n++) if(!takenNums.includes(n)) avail.push(n); 
     for(let i=0; i<n && avail.length>0; i++) mySelection.push(avail.splice(Math.floor(Math.random()*avail.length),1)[0]); 
     renderNumbers(); 
 }
