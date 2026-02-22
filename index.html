@@ -176,9 +176,10 @@ function initApp() {
         passReqs = data.passReqs || [];
         historial = data.historial || [];
         
-        let newSalas = data.salas || [];
-        if(newSalas.length === 0) { newSalas = salas; }
-        salas = newSalas;
+        // RESET FORZADO DE SALAS PARA ESTA CARGA
+        salas = Array.from({length: 20}, (_, i) => ({ 
+            id: i+1, count: 0, sold: [], isSpinning: false, isWaiting: false, currentGiro: 0, endTime: 0, lastWinner: null 
+        }));
 
         const saved = localStorage.getItem('GCT_SESSION');
         if(saved) {
@@ -245,7 +246,7 @@ function logic() {
                         s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; s.isWaiting = false; s.isSpinning = false;
                         if(i === sSel) { document.getElementById('live-counter').innerText = ""; document.getElementById('status-txt').innerText = ""; }
                         save(); 
-                    }, 3000);
+                    }, 5000);
                 }
                 change = true;
             } else if(i === sSel) {
@@ -353,7 +354,8 @@ function aprobarWith(idx) { let w = pendingWiths[idx]; historial.push({ type: 's
 function rechazarWith(idx) { let w = pendingWiths[idx]; let u = users.find(x => x.u === w.u); if(u) u.b += w.a; historial.push({ type: 'sys', u: w.u, msg: `Retiro RECHAZADO: $${w.a}`, sala: 'SISTEMA', fecha: new Date().toLocaleString() }); pendingWiths.splice(idx, 1); save(); }
 </script>
 
-<div style="font-size: 8px; color: #333; position: fixed; bottom: 0; width: 100%; text-align: center;">Todos los derechos reservados.</div>
+<div style="font-size: 8px; color: #333; width: 100%; text-align: center; padding-bottom: 10px;">Todos los derechos reservados.</div>
 
 </body>
 </html>
+
