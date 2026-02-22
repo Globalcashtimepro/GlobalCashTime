@@ -152,7 +152,8 @@
 let users = [], currentU = null, ang = 0, sSel = 0, mySelection = [], tempImg = "";
 let pendingDeps = [], pendingWiths = [], passReqs = [], historial = [], salas = [];
 
-const wheelNumbers = Array.from({length: 200}, (_, i) => i + 1); 
+// 5: Números aleatorios en la ruleta
+const wheelNumbers = Array.from({length: 200}, (_, i) => i + 1).sort(() => Math.random() - 0.5); 
 const PREMIOS = { 1: 5, 2: 15, 3: 50 };
 
 window.onload = () => {
@@ -177,22 +178,20 @@ function initApp() {
         let newSalas = data.salas || [];
         if(newSalas.length === 0) {
             newSalas = Array.from({length: 20}, (_, i) => ({ 
-                id: i+1, count: 0, sold: [], isSpinning: false, isWaiting: false, currentGiro: 0, endTime: 0, lastWinner: null 
+                id: i+1, count: 0, sold: [], isSpinning: false, isWaiting: false, currentGiro: 0, endTime: 0, lastWinner: null, lastAng: 0 
             }));
         }
         
-        // RESTABLECER TODAS LAS SALAS AL CARGAR PARA EVITAR BLOQUEOS
-        newSalas.forEach((s) => {
-            if(s.count >= 200 && !s.isSpinning && !s.isWaiting) {
-                s.count = 0; s.sold = []; s.currentGiro = 0; s.isSpinning = false; s.isWaiting = false; s.lastWinner = null;
-            }
-        });
-
         salas = newSalas;
         const saved = localStorage.getItem('GCT_SESSION');
         if(saved) {
-            if(saved === "ADMIN_GLOBAL") { currentU = {u:"ADMIN_GLOBAL", b:0}; document.getElementById('admin-panel').style.display='block'; }
-            else { currentU = users.find(x => x.u === saved); }
+            if(saved === "ADMIN_GLOBAL") { 
+                currentU = {u:"ADMIN_GLOBAL", b:0}; 
+                document.getElementById('admin-panel').style.display='block'; 
+            } else { 
+                // 4: Ver cuenta en tiempo real (actualización automática desde Firebase)
+                currentU = users.find(x => x.u === saved); 
+            }
             if(currentU) showProfile();
         }
         
@@ -201,6 +200,12 @@ function initApp() {
         renderNumbers();
         document.getElementById('sala-txt').innerText = `SALA #${salas[sSel]?.id || (sSel+1)}`;
         updateUI();
+
+        // 3: Refrescar vistas de admin si están abiertas
+        const adminDiv = document.getElementById('pending-deps');
+        if(adminDiv.getAttribute('data-view') === 'notif') renderAdmin();
+        if(adminDiv.getAttribute('data-view') === 'db') renderUserDB();
+        if(adminDiv.getAttribute('data-view') === 'pass') renderPassReqs();
     });
     setInterval(logic, 30);
     draw();
@@ -253,14 +258,18 @@ function logic() {
                 }
                 change = true;
             } else if(i === sSel) {
-                let duration = 15000; // 15 Segundos por giro
+                // 7: Desaceleración más lenta y natural
+                let duration = 15000;
                 let elapsed = duration - timeLeft;
                 let progress = Math.min(1, elapsed / duration);
-                let speed = 0.5 * Math.pow(1 - progress, 3.5);
                 
-                ang += speed; 
+                // Función de potencia para frenado suave
+                let speed = 0.6 * Math.pow(1 - progress, 2.5); 
+                ang += speed;
+                s.lastAng = ang; // 6: Guardar ángulo para tiempo real
+
                 const ptr = document.getElementById('pointer');
-                if (speed > 0.00001) {
+                if (speed > 0.001) {
                     let hitFrequency = Math.sin(ang * 200); 
                     ptr.style.transform = `translateY(-50%) rotate(${hitFrequency * 10 * (1-progress)}deg)`;
                 } else {
@@ -268,14 +277,9 @@ function logic() {
                 }
                 draw(); 
                 document.getElementById('live-counter').innerText = `SORTEANDO: ${getWinningNumber()}`;
-            }
-        } else if(s.isWaiting) {
-            if(now >= s.endTime && s.currentGiro < 3 && s.currentGiro !== 0) {
-                s.isWaiting = false;
-                s.currentGiro++; 
-                s.isSpinning = true; 
-                s.endTime = now + 15000; 
-                change = true;
+            } else {
+                // 6: Las salas que no se ven también avanzan el ángulo basado en el tiempo
+                s.lastAng += 0.05; 
             }
         }
     });
@@ -305,6 +309,8 @@ function setSala(i) {
     document.getElementById('sala-txt').innerText = `SALA #${salas[i]?.id || (i+1)}`; 
     document.getElementById('live-counter').innerText = "";
     document.getElementById('status-txt').innerText = "";
+    // 6: Sincronizar ángulo al cambiar
+    ang = salas[i].lastAng || 0;
     renderGrid(); 
     renderNumbers(); 
 }
@@ -331,13 +337,22 @@ function rand(n) {
     renderNumbers(); 
 }
 
+// 2: Función para mensaje "ENVIADO" temporal
+function showEnviado() {
+    const c = document.getElementById('modal-content');
+    c.innerHTML = `<h2 style="color:var(--green); margin:40px 0;">ENVIADO</h2>`;
+    setTimeout(() => { closeM(); }, 2000);
+}
+
 function openM(t) { 
     const c = document.getElementById('modal-content'); document.getElementById('modal').style.display='flex'; 
     if(t==='auth') { c.innerHTML = `<h3>LOGIN</h3><input id="li-u" placeholder="Correo"><div class="password-wrapper"><input id="li-p" type="password" placeholder="Clave"><span class="eye-icon" onclick="togglePass('li-p')">👁️</span></div><button onclick="login()" style="width:100%; margin-top:10px;">ENTRAR</button><div class="auth-links"><span onclick="openM('reg')">Registrarse</span> | <span onclick="openM('recover')">Olvidé mi clave</span></div>`; }
     else if(t==='reg') { c.innerHTML = `<h3>REGISTRO</h3><p style="font-size:10px;">Solo @gmail.com - Clave min. 8 dígitos</p><input id="re-u" placeholder="Correo electrónico"><div class="password-wrapper"><input id="re-p" type="password" placeholder="Crear Clave"><span class="eye-icon" onclick="togglePass('re-p')">👁️</span></div><button onclick="register()" style="width:100%; margin-top:10px;">CREAR CUENTA</button><div class="auth-links"><span onclick="openM('auth')">Ya tengo cuenta</span></div>`; }
     else if(t==='recover') { c.innerHTML = `<h3>RECUPERAR</h3><p style="font-size:11px;">Ingresa tu correo para solicitar asistencia</p><input id="rec-u" placeholder="Tu correo"><button onclick="requestPass()" style="width:100%">ENVIAR SOLICITUD</button>`; }
-    else if(t==='dep') { c.innerHTML = `<h3>RECARGAR</h3><p style="font-size:10px; color:var(--primary);">Mínimo de depósito: $5.00 USD</p><div class="wallet-box">TRC20: <b>TFtX2tLdjqTnTdVAUfQ8YNACv6QUAK9LAy</b></div><input id="dep-amt" type="number" placeholder="Monto $"><div class="upload-box" onclick="document.getElementById('f-in').click()">+ COMPROBANTE<input type="file" id="f-in" hidden onchange="previewFile()"><img id="preview-img"></div><button onclick="notificarPago()" style="width:100%">ENVIAR</button>`; }
-    else if(t==='with') { c.innerHTML = `<h3>RETIRAR</h3><p style="font-size:10px; color:var(--red);">Mínimo de retiro: $10.00 USD</p><input id="wi-amt" type="number" placeholder="Monto $"><input id="wi-wallet" placeholder="Tu Billetera TRC20"><button onclick="solicitarRetiro()" style="width:100%; background:var(--red); color:#fff;">SOLICITAR RETIRO</button>`; }
+    // 1: Tiempo 0-1H en depósito
+    else if(t==='dep') { c.innerHTML = `<h3>RECARGAR</h3><p style="font-size:10px; color:var(--primary); margin-bottom:2px;">Mínimo de depósito: $5.00 USD</p><p style="font-size:10px; color:#aaa; margin-top:0;">Tiempo 0 - 1H</p><div class="wallet-box">TRC20: <b>TFtX2tLdjqTnTdVAUfQ8YNACv6QUAK9LAy</b></div><input id="dep-amt" type="number" placeholder="Monto $"><div class="upload-box" onclick="document.getElementById('f-in').click()">+ COMPROBANTE<input type="file" id="f-in" hidden onchange="previewFile()"><img id="preview-img"></div><button onclick="notificarPago()" style="width:100%">ENVIAR</button>`; }
+    // 1: Tiempo 0-1H en retiro
+    else if(t==='with') { c.innerHTML = `<h3>RETIRAR</h3><p style="font-size:10px; color:var(--red); margin-bottom:2px;">Mínimo de retiro: $10.00 USD</p><p style="font-size:10px; color:#aaa; margin-top:0;">Tiempo 0 - 1H</p><input id="wi-amt" type="number" placeholder="Monto $"><input id="wi-wallet" placeholder="Tu Billetera TRC20"><button onclick="solicitarRetiro()" style="width:100%; background:var(--red); color:#fff;">SOLICITAR RETIRO</button>`; }
     else if(t==='faq') { c.innerHTML = `<h3>PREGUNTAS FRECUENTES</h3><div style="text-align:left; font-size:12px;"><b>¿Qué es GLOBAL CASH TIME?</b><p>Plataforma de sorteos en tiempo real con 3 premios por sala.</p></div>`; }
     else if(t==='nosotros') { c.innerHTML = `<h3>NOSOTROS</h3><div style="text-align:left; font-size:12px;"><p>Transparencia y rapidez en cada sorteo global.</p></div>`; }
     else if(t==='contacto') { c.innerHTML = `<h3>CONTACTO</h3><div style="font-size:14px; margin:20px 0;">📧 globalcashtime@gmail.com</div>`; }
@@ -394,14 +409,17 @@ function requestPass() {
     let u = document.getElementById('rec-u').value;
     if(u) {
         passReqs.push({ u: u, info: "Solicitud de recuperación de clave", fecha: new Date().toLocaleString() });
-        save(); alert("ENVIADO"); closeM();
+        save(); showEnviado(); // 2: ENVIADO temporal
     }
 }
 
 function previewFile() { const f = document.getElementById('f-in').files[0]; const r = new FileReader(); r.onloadend = () => { tempImg = r.result; document.getElementById('preview-img').src=tempImg; document.getElementById('preview-img').style.display='block'; }; if(f) r.readAsDataURL(f); }
 function notificarPago() { 
     let a = parseFloat(document.getElementById('dep-amt').value); 
-    if(a >= 5 && tempImg) { pendingDeps.push({ u: currentU.u, a: a, img: tempImg, id: Date.now() }); save(); alert("Enviado"); closeM(); } 
+    if(a >= 5 && tempImg) { 
+        pendingDeps.push({ u: currentU.u, a: a, img: tempImg, id: Date.now() }); 
+        save(); showEnviado(); // 2: ENVIADO temporal
+    } 
 }
 
 function solicitarRetiro() {
@@ -410,7 +428,7 @@ function solicitarRetiro() {
     if(a >= 10 && currentU.b >= a && wal) {
         currentU.b -= a;
         pendingWiths.push({ u: currentU.u, a: a, wallet: wal, id: Date.now(), fecha: new Date().toLocaleString() });
-        save(); alert("Solicitado"); closeM();
+        save(); showEnviado(); // 2: ENVIADO temporal
     }
 }
 
