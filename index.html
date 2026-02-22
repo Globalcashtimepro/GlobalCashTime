@@ -174,10 +174,19 @@ function initApp() {
         passReqs = data.passReqs || [];
         historial = data.historial || [];
         
-        // RESTABLECER TODAS LAS SALAS SIEMPRE AL INICIAR
-        let newSalas = Array.from({length: 20}, (_, i) => ({ 
-            id: i+1, count: 0, sold: [], isSpinning: false, isWaiting: false, currentGiro: 0, endTime: 0, lastWinner: null 
-        }));
+        let newSalas = data.salas || [];
+        if(newSalas.length === 0) {
+            newSalas = Array.from({length: 20}, (_, i) => ({ 
+                id: i+1, count: 0, sold: [], isSpinning: false, isWaiting: false, currentGiro: 0, endTime: 0, lastWinner: null 
+            }));
+        }
+        
+        // RESTABLECER TODAS LAS SALAS AL CARGAR PARA EVITAR BLOQUEOS
+        newSalas.forEach((s) => {
+            if(s.count >= 200 && !s.isSpinning && !s.isWaiting) {
+                s.count = 0; s.sold = []; s.currentGiro = 0; s.isSpinning = false; s.isWaiting = false; s.lastWinner = null;
+            }
+        });
 
         salas = newSalas;
         const saved = localStorage.getItem('GCT_SESSION');
@@ -244,7 +253,7 @@ function logic() {
                 }
                 change = true;
             } else if(i === sSel) {
-                let duration = 15000;
+                let duration = 15000; // 15 Segundos por giro
                 let elapsed = duration - timeLeft;
                 let progress = Math.min(1, elapsed / duration);
                 let speed = 0.5 * Math.pow(1 - progress, 3.5);
