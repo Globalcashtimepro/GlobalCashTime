@@ -180,6 +180,13 @@ function initApp() {
                 id: i+1, count: 0, sold: [], isSpinning: false, isWaiting: false, currentGiro: 0, endTime: 0, lastWinner: null 
             }));
         }
+        
+        // FORZAR RESTABLECIMIENTO DE SALA 1 Y 2 SI ESTÁN ATASCADAS
+        newSalas.forEach((s, i) => {
+            if((s.id === 1 || s.id === 2) && s.count >= 200 && !s.isSpinning && !s.isWaiting) {
+                s.count = 0; s.sold = []; s.currentGiro = 0; s.isSpinning = false; s.isWaiting = false;
+            }
+        });
 
         salas = newSalas;
         const saved = localStorage.getItem('GCT_SESSION');
@@ -225,7 +232,7 @@ function logic() {
             let timeLeft = s.endTime - now;
             if(timeLeft <= 0) {
                 s.isSpinning = false; s.isWaiting = true; s.endTime = now + 5000;
-                s.lastWinner = getWinningNumberAtTime(s.endTime - 5000); 
+                s.lastWinner = getWinningNumber();
                 let winnerData = (s.sold || []).find(x => x.n === s.lastWinner);
                 let premioMonto = PREMIOS[s.currentGiro];
                 if(winnerData) {
@@ -234,7 +241,6 @@ function logic() {
                 }
                 historial.push({ type:'win', u: winnerData ? winnerData.u : 'Nadie', sala: s.id, ganador: s.lastWinner, premio: premioMonto, fecha: new Date().toLocaleString() });
                 
-                // REINICIO AUTOMÁTICO AL TERMINAR EL GIRO 3
                 if(s.currentGiro === 3) {
                     setTimeout(() => {
                         s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; s.isWaiting = false; s.isSpinning = false;
@@ -243,19 +249,23 @@ function logic() {
                             document.getElementById('status-txt').innerText = "";
                         }
                         save(); 
-                    }, 5000);
+                    }, 3000);
                 }
                 change = true;
             } else if(i === sSel) {
-                // SINCRONIZACIÓN DE ÁNGULO BASADA EN TIEMPO RESTANTE
-                let duration = 15000; // 15 seg por giro
+                let duration = 60000;
                 let elapsed = duration - timeLeft;
-                ang = (elapsed / 100); 
+                let progress = Math.min(1, elapsed / duration);
+                let speed = 0.5 * Math.pow(1 - progress, 3.5);
                 
+                ang += speed; 
                 const ptr = document.getElementById('pointer');
-                let hitFrequency = Math.sin(ang * 200); 
-                ptr.style.transform = `translateY(-50%) rotate(${hitFrequency * 10}deg)`;
-                
+                if (speed > 0.00001) {
+                    let hitFrequency = Math.sin(ang * 200); 
+                    ptr.style.transform = `translateY(-50%) rotate(${hitFrequency * 10 * (1-progress)}deg)`;
+                } else {
+                    ptr.style.transform = `translateY(-50%) rotate(0deg)`;
+                }
                 draw(); 
                 document.getElementById('live-counter').innerText = `SORTEANDO: ${getWinningNumber()}`;
             }
@@ -264,25 +274,17 @@ function logic() {
                 s.isWaiting = false;
                 s.currentGiro++; 
                 s.isSpinning = true; 
-                s.endTime = now + 15000; 
+                s.endTime = now + 60000; 
                 change = true;
             }
         }
     });
-    if(change) save();
+    if(change && currentU && currentU.u === "ADMIN_GLOBAL") save();
     updateStatus();
 }
 
 function getWinningNumber() {
     const normalizedAng = (ang % (Math.PI * 2) + (Math.PI * 2)) % (Math.PI * 2);
-    const index = Math.floor(((Math.PI * 2 - normalizedAng) / (Math.PI * 2)) * 200) % 200;
-    return wheelNumbers[index];
-}
-
-function getWinningNumberAtTime(t) {
-    let duration = 15000;
-    let fakeAng = (duration / 100);
-    const normalizedAng = (fakeAng % (Math.PI * 2) + (Math.PI * 2)) % (Math.PI * 2);
     const index = Math.floor(((Math.PI * 2 - normalizedAng) / (Math.PI * 2)) * 200) % 200;
     return wheelNumbers[index];
 }
@@ -301,6 +303,7 @@ function setSala(i) {
     localStorage.setItem('GCT_S_SEL', i); 
     mySelection = []; 
     document.getElementById('sala-txt').innerText = `SALA #${salas[i]?.id || (i+1)}`; 
+    // LIMPIAR TEXTOS DE SORTEO AL CAMBIAR DE SALA
     document.getElementById('live-counter').innerText = "";
     document.getElementById('status-txt').innerText = "";
     renderGrid(); 
@@ -313,14 +316,11 @@ function comprarSeleccion() {
     if(s.isSpinning || s.isWaiting) return alert("Sorteo en curso");
     if(cost > 0 && currentU.b >= cost) { 
         currentU.b -= cost;
+        historial.push({ type:'buy', u: currentU.u, sala: s.id, nums: [...mySelection], fecha: new Date().toLocaleString() });
         if(!s.sold) s.sold = [];
         mySelection.forEach(num => s.sold.push({n: num, u: currentU.u}));
         s.count = s.sold.length; mySelection = []; 
-        if(s.count >= 200) { 
-            s.currentGiro = 1; 
-            s.isSpinning = true; 
-            s.endTime = Date.now() + 15000; 
-        } 
+        if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.endTime = Date.now() + 60000; } 
         save(); 
     } 
 }
@@ -334,12 +334,28 @@ function rand(n) {
 
 function openM(t) { 
     const c = document.getElementById('modal-content'); document.getElementById('modal').style.display='flex'; 
-    if(t==='auth') { c.innerHTML = `<h3>LOGIN</h3><input id="li-u" placeholder="Correo"><input id="li-p" type="password" placeholder="Clave"><button onclick="login()" style="width:100%; margin-top:10px;">ENTRAR</button>`; }
-    else if(t==='dep') { c.innerHTML = `<h3>RECARGAR</h3><p style="font-size:10px; color:var(--primary);">Mínimo: $5.00 USD</p><div class="wallet-box">TRC20: <b>TFtX2tLdjqTnTdVAUfQ8YNACv6QUAK9LAy</b></div><input id="dep-amt" type="number" placeholder="Monto $"><button onclick="notificarPago()" style="width:100%">ENVIAR</button>`; }
-    else if(t==='with') { c.innerHTML = `<h3>RETIRAR</h3><p style="font-size:10px; color:var(--red);">Mínimo: $10.00 USD</p><input id="wi-amt" type="number" placeholder="Monto $"><input id="wi-wallet" placeholder="Tu Billetera TRC20"><button onclick="solicitarRetiro()" style="width:100%; background:var(--red); color:#fff;">SOLICITAR RETIRO</button>`; }
+    if(t==='auth') { c.innerHTML = `<h3>LOGIN</h3><input id="li-u" placeholder="Correo"><div class="password-wrapper"><input id="li-p" type="password" placeholder="Clave"><span class="eye-icon" onclick="togglePass('li-p')">👁️</span></div><button onclick="login()" style="width:100%; margin-top:10px;">ENTRAR</button><div class="auth-links"><span onclick="openM('reg')">Registrarse</span> | <span onclick="openM('recover')">Olvidé mi clave</span></div>`; }
+    else if(t==='reg') { c.innerHTML = `<h3>REGISTRO</h3><p style="font-size:10px;">Solo @gmail.com - Clave min. 8 dígitos</p><input id="re-u" placeholder="Correo electrónico"><div class="password-wrapper"><input id="re-p" type="password" placeholder="Crear Clave"><span class="eye-icon" onclick="togglePass('re-p')">👁️</span></div><button onclick="register()" style="width:100%; margin-top:10px;">CREAR CUENTA</button><div class="auth-links"><span onclick="openM('auth')">Ya tengo cuenta</span></div>`; }
+    else if(t==='recover') { c.innerHTML = `<h3>RECUPERAR</h3><p style="font-size:11px;">Ingresa tu correo para solicitar asistencia</p><input id="rec-u" placeholder="Tu correo"><button onclick="requestPass()" style="width:100%">ENVIAR SOLICITUD</button>`; }
+    else if(t==='dep') { c.innerHTML = `<h3>RECARGAR</h3><p style="font-size:10px; color:var(--primary);">Mínimo de depósito: $5.00 USD</p><div class="wallet-box">TRC20: <b>TFtX2tLdjqTnTdVAUfQ8YNACv6QUAK9LAy</b></div><input id="dep-amt" type="number" placeholder="Monto $"><div class="upload-box" onclick="document.getElementById('f-in').click()">+ COMPROBANTE<input type="file" id="f-in" hidden onchange="previewFile()"><img id="preview-img"></div><button onclick="notificarPago()" style="width:100%">ENVIAR</button>`; }
+    else if(t==='with') { c.innerHTML = `<h3>RETIRAR</h3><p style="font-size:10px; color:var(--red);">Mínimo de retiro: $10.00 USD</p><input id="wi-amt" type="number" placeholder="Monto $"><input id="wi-wallet" placeholder="Tu Billetera TRC20"><button onclick="solicitarRetiro()" style="width:100%; background:var(--red); color:#fff;">SOLICITAR RETIRO</button>`; }
+    else if(t==='faq') { c.innerHTML = `<h3>PREGUNTAS FRECUENTES</h3><div style="text-align:left; font-size:12px;"><b>¿Qué es GLOBAL CASH TIME?</b><p>Plataforma de sorteos en tiempo real con 3 premios por sala.</p></div>`; }
+    else if(t==='nosotros') { c.innerHTML = `<h3>NOSOTROS</h3><div style="text-align:left; font-size:12px;"><p>Transparencia y rapidez en cada sorteo global.</p></div>`; }
+    else if(t==='contacto') { c.innerHTML = `<h3>CONTACTO</h3><div style="font-size:14px; margin:20px 0;">📧 globalcashtime@gmail.com</div>`; }
+    else if(t==='hist') { 
+        let displayHist = historial.filter(h => h.u === currentU?.u || h.sala === (salas[sSel]?.id || sSel+1) || (currentU && currentU.u === 'ADMIN_GLOBAL')); 
+        c.innerHTML = `<h3>HISTORIAL</h3><div style="max-height:250px; overflow-y:auto; font-size:11px; text-align:left;">` + 
+        displayHist.reverse().map(h => {
+            let salaTag = `<span style="color:var(--primary)">[SALA ${h.sala}]</span>`;
+            let msg = h.type === 'buy' ? `${salaTag} <b style="color:var(--primary)">${h.u}</b> compró: [${h.nums.join(', ')}]` : 
+                      h.type === 'win' ? `${salaTag} <b style="color:var(--green)">GANADOR: ${h.u}</b> (Nº${h.ganador}) - $${h.premio}` : `${salaTag} ${h.msg || ""}`;
+            return `<div style="border-bottom:1px solid #333; padding:8px 5px;">${msg}<br><small style="opacity:0.6;">${h.fecha}</small></div>`;
+        }).join('') + `</div>`; 
+    }
     c.innerHTML += `<button onclick="closeM()" style="background:#444; margin-top:10px; width:100%;">CERRAR</button>`; 
 }
 
+function togglePass(id) { const el = document.getElementById(id); el.type = el.type === 'password' ? 'text' : 'password'; }
 function renderGrid() { const grid = document.getElementById('grid-salas'); grid.innerHTML = ""; salas.forEach((s, i) => { grid.innerHTML += `<div class="sala-card ${sSel===i?'active':''}" onclick="setSala(${i})"><b>SALA ${s.id}</b><div>${s.count}/200</div></div>`; }); }
 function renderNumbers() { 
     const cont = document.getElementById('num-selector'); cont.innerHTML = ""; 
@@ -356,15 +372,104 @@ function updateStatus() {
     let s = salas[sSel], st = document.getElementById('status-txt'); if(!s) return;
     if(s.isSpinning) st.innerText = `GIRO ${s.currentGiro} EN PROGRESO...`; 
     else if(s.isWaiting) st.innerText = s.lastWinner ? `GANADOR: #${s.lastWinner}` : "";
+    // NO PONER NADA SI NO HAY SORTEO ACTIVO
 }
 function showProfile() { document.getElementById('guest-btn').style.display='none'; document.getElementById('user-profile').style.display='block'; document.getElementById('prof-name').innerText = currentU.u; }
-function updateUI() { if(currentU && currentU.u !== "ADMIN_GLOBAL") { let uLive = users.find(x => x.u === currentU.u); if(uLive) document.getElementById('prof-balance').innerText = `$${uLive.b.toFixed(2)}`; } }
+function updateUI() { if(currentU && currentU.u !== "ADMIN_GLOBAL") document.getElementById('prof-balance').innerText = `$${currentU.b.toFixed(2)}`; }
 function logout() { localStorage.removeItem('GCT_SESSION'); location.reload(); }
-function closeM() { document.getElementById('modal').style.display='none'; }
+function closeM() { document.getElementById('modal').style.display='none'; tempImg=""; }
+
+function register() { 
+    let u = document.getElementById('re-u').value.trim().toLowerCase(), p = document.getElementById('re-p').value; 
+    if(!u.endsWith("@gmail.com")) return alert("Solo @gmail.com");
+    if(p.length < 8) return alert("Mínimo 8 dígitos");
+    if(u && p) { users.push({u, p, b: 0}); save(); alert("Registrado"); openM('auth'); } 
+}
+
 function login() { 
     let u = document.getElementById('li-u').value.trim().toLowerCase(), p = document.getElementById('li-p').value; 
     if(u==="admin_global" && p==="CASH_TIME_2026") { localStorage.setItem('GCT_SESSION', "ADMIN_GLOBAL"); location.reload(); return; } 
     let user = users.find(x=>x.u===u && x.p===p); if(user) { localStorage.setItem('GCT_SESSION', u); location.reload(); } else alert("Error"); 
+}
+
+function requestPass() {
+    let u = document.getElementById('rec-u').value;
+    if(u) {
+        passReqs.push({ u: u, info: "Solicitud de recuperación de clave", fecha: new Date().toLocaleString() });
+        save(); alert("ENVIADO"); closeM();
+    }
+}
+
+function previewFile() { const f = document.getElementById('f-in').files[0]; const r = new FileReader(); r.onloadend = () => { tempImg = r.result; document.getElementById('preview-img').src=tempImg; document.getElementById('preview-img').style.display='block'; }; if(f) r.readAsDataURL(f); }
+function notificarPago() { 
+    let a = parseFloat(document.getElementById('dep-amt').value); 
+    if(a >= 5 && tempImg) { pendingDeps.push({ u: currentU.u, a: a, img: tempImg, id: Date.now() }); save(); alert("Enviado"); closeM(); } 
+}
+
+function solicitarRetiro() {
+    let a = parseFloat(document.getElementById('wi-amt').value);
+    let wal = document.getElementById('wi-wallet').value;
+    if(a >= 10 && currentU.b >= a && wal) {
+        currentU.b -= a;
+        pendingWiths.push({ u: currentU.u, a: a, wallet: wal, id: Date.now(), fecha: new Date().toLocaleString() });
+        save(); alert("Solicitado"); closeM();
+    }
+}
+
+function renderAdmin() { 
+    const div = document.getElementById('pending-deps'); div.setAttribute('data-view', 'notif'); div.innerHTML = "<h4>NOTIFICACIONES</h4>"; 
+    pendingDeps.forEach((p, idx) => { 
+        div.innerHTML += `<div class="admin-notif"><b>DEPÓSITO: ${p.u} ($${p.a})</b><br><img src="${p.img}" style="width:100%; max-width:200px; cursor:pointer; margin:5px 0; border:1px solid #444;" onclick="window.open(this.src)"><br>
+            <button onclick="aprobar(${idx})">Aprobar</button> 
+            <button onclick="rechazarDep(${idx})" style="background:var(--red); color:#fff;">Rechazar</button>
+        </div>`; 
+    });
+    pendingWiths.forEach((w, idx) => { 
+        div.innerHTML += `<div class="admin-notif" style="border-color:var(--red);"><b>RETIRO: ${w.u} ($${w.a})</b><br><small>Wallet: ${w.wallet}</small><br>
+            <button onclick="aprobarWith(${idx})">Finalizar Pago</button>
+            <button onclick="rechazarWith(${idx})" style="background:var(--red); color:#fff;">Rechazar</button>
+        </div>`; 
+    });
+}
+
+function renderUserDB() {
+    const div = document.getElementById('pending-deps'); div.setAttribute('data-view', 'db'); div.innerHTML = "<h4>BASE DE DATOS COMPLETA</h4>";
+    users.forEach((u, idx) => { 
+        div.innerHTML += `<div class="admin-notif" style="border-left-color:var(--link);">
+            <div style="margin-bottom:8px;"><b>👤 ${u.u}</b><br>🔑 Pass: <span style="color:var(--primary)">${u.p}</span><br>💰 Saldo: <b style="color:var(--green)">$${u.b.toFixed(2)}</b></div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px;">
+                <div style="display:flex; flex-direction:column; gap:3px;">
+                    <button onclick="editBal(${idx}, 0.5)" style="background:var(--green); color:#000; padding:4px; font-size:9px;">+ $0.50</button>
+                    <button onclick="editBal(${idx}, 5)" style="background:var(--green); color:#000; padding:4px; font-size:9px;">+ $5.00</button>
+                    <button onclick="editBal(${idx}, 10)" style="background:var(--green); color:#000; padding:4px; font-size:9px;">+ $10.00</button>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:3px;">
+                    <button onclick="editBal(${idx}, -0.5)" style="background:var(--red); color:#fff; padding:4px; font-size:9px;">- $0.50</button>
+                    <button onclick="editBal(${idx}, -5)" style="background:var(--red); color:#fff; padding:4px; font-size:9px;">- $5.00</button>
+                    <button onclick="editBal(${idx}, -10)" style="background:var(--red); color:#fff; padding:4px; font-size:9px;">- $10.00</button>
+                </div>
+            </div>
+        </div>`; 
+    });
+}
+
+function renderPassReqs() {
+    const div = document.getElementById('pending-deps'); div.setAttribute('data-view', 'pass'); div.innerHTML = "<h4>SOLICITUDES CLAVES</h4>";
+    passReqs.forEach((r, idx) => { div.innerHTML += `<div class="admin-notif"><b>De: ${r.u}</b><br>${r.info}<br><small>${r.fecha}</small><br><button onclick="passReqs.splice(${idx},1); save();">Eliminar Solicitud</button></div>`; });
+}
+
+function editBal(idx, amt) { users[idx].b += amt; if(users[idx].b < 0) users[idx].b = 0; save(); }
+function aprobar(idx) { 
+    let p = pendingDeps[idx]; let u = users.find(x => x.u === p.u); 
+    if(u) { u.b += p.a; historial.push({ type: 'sys', u: p.u, msg: `Depósito Aprobado: +$${p.a}`, sala: 'SISTEMA', fecha: new Date().toLocaleString() }); } 
+    pendingDeps.splice(idx, 1); save(); 
+}
+function rechazarDep(idx) { pendingDeps.splice(idx, 1); save(); }
+function aprobarWith(idx) { pendingWiths.splice(idx, 1); save(); }
+function rechazarWith(idx) {
+    let w = pendingWiths[idx]; let u = users.find(x => x.u === w.u);
+    if(u) u.b += w.a; 
+    pendingWiths.splice(idx, 1); save();
 }
 </script>
 
