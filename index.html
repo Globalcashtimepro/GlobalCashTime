@@ -247,7 +247,7 @@ function initApp() {
 }
 
 function save() {
-    window.dbSet(window.dbRef(window.db), "/"), { users, pendingDeps, pendingWiths, passReqs, historial, salas });
+    window.dbSet(window.dbRef(window.db, "/"), { users, pendingDeps, pendingWiths, passReqs, historial, salas });
 }
 
 function createRain() {
