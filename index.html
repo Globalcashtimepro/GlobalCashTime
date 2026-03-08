@@ -247,15 +247,9 @@ function initApp() {
 }
 
 function save() {
-    window.dbUpdate(window.dbRef(window.db), {
-        users: users,
-        pendingDeps: pendingDeps,
-        pendingWiths: pendingWiths,
-        passReqs: passReqs,
-        historial: historial,
-        salas: salas
-    });
+    window.dbSet(window.dbRef(window.db), { users, pendingDeps, pendingWiths, passReqs, historial, salas });
 }
+
 function createRain() {
     const container = document.getElementById('rain-container');
     for(let i=0; i<60; i++) {
