@@ -8,7 +8,6 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCuDXPDJNaasJoKYC7wfTYSeN3uqelZ7Fs",
@@ -23,16 +22,12 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
-        const auth = getAuth(app);
 
         window.db = db;
         window.dbRef = ref;
         window.dbSet = set;
         window.dbOnValue = onValue;
         window.dbUpdate = update;
-        window.auth = auth;
-        window.createUser = createUserWithEmailAndPassword;
-        window.signIn = signInWithEmailAndPassword;
     </script>
 
     <style>
@@ -206,19 +201,12 @@ function initApp() {
         historial = data.historial || [];
         
         let dbSalas = data.salas || [];
-        if(dbSalas.length > 0) salas = dbSalas;
+        if(dbSalas.length > 0) {
+            salas = dbSalas;
+        }
         if(salas.length < 50) {
             for(let i=salas.length; i<50; i++) salas.push({id: i+1, count: 0, sold: [], isSpinning: false, isWaiting: false, waitStep: 0, currentGiro: 0, endTime: 0, lastWinner: null});
         }
-
-        let resetRequired = false;
-        salas.forEach(s => {
-            if(s.currentGiro >= 3 && !s.isSpinning && !s.isWaiting && s.count > 0) {
-                s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null;
-                resetRequired = true;
-            }
-        });
-        if(resetRequired) save();
 
         const saved = localStorage.getItem('GCT_SESSION');
         if(saved) {
@@ -233,7 +221,6 @@ function initApp() {
                 let found = users.find(x => x.u === saved);
                 if(found) {
                     currentU = found;
-                    document.getElementById('prof-balance').innerText = `$${currentU.b.toFixed(2)}`;
                 }
             }
             if(currentU) showProfile();
@@ -279,16 +266,16 @@ function logic() {
     salas.forEach((s, i) => {
         if(s.isSpinning) {
             let timeLeft = s.endTime - now;
-            let duration = 60000; 
+            let duration = 15000; // 15 segundos de giro
             let progress = Math.min(1, (duration - timeLeft) / duration);
-            let speed = 0.5 * Math.pow(1 - progress, 2.5); 
+            let speed = 0.5 * Math.pow(1 - progress, 2); 
 
-            if(timeLeft <= 0 || speed <= 0.0001) {
+            if(timeLeft <= 0) {
                 const finalWinner = getWinningNumber();
                 s.isSpinning = false; 
                 s.isWaiting = true; 
                 s.waitStep = 1; 
-                s.endTime = now + 5000;
+                s.endTime = now + 5000; // 5 segundos de stop
                 s.lastWinner = finalWinner;
                 
                 let winnerData = (s.sold || []).find(x => x.n === s.lastWinner);
@@ -307,14 +294,9 @@ function logic() {
             } else if(i === sSel) {
                 ang += speed; 
                 const ptr = document.getElementById('pointer');
-                if (speed > 0.001) { 
-                    let hitFrequency = Math.sin(ang * 200); 
-                    ptr.style.transform = `translateY(-50%) rotate(${hitFrequency * 8 * (1-progress)}deg)`; 
-                    document.getElementById('live-counter').innerText = `SORTEANDO: ${getWinningNumber()}`;
-                } else {
-                    ptr.style.transform = `translateY(-50%) rotate(0deg)`;
-                    document.getElementById('live-counter').innerText = "";
-                }
+                let hitFrequency = Math.sin(ang * 200); 
+                ptr.style.transform = `translateY(-50%) rotate(${hitFrequency * 8 * (1-progress)}deg)`; 
+                document.getElementById('live-counter').innerText = `SORTEANDO: ${getWinningNumber()}`;
                 draw(); 
             }
         } else if(s.isWaiting) {
@@ -328,8 +310,9 @@ function logic() {
                         s.isWaiting = false; 
                         s.currentGiro++; 
                         s.isSpinning = true; 
-                        s.endTime = now + 60000; 
+                        s.endTime = now + 15000; 
                     } else {
+                        // Reset automático tras el 3er giro
                         s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; s.isWaiting = false; s.isSpinning = false;
                         if(i === sSel) { 
                             document.getElementById('live-counter').innerText = ""; 
@@ -373,7 +356,7 @@ function comprarSeleccion() {
     if(cost > 0 && currentU.b >= cost) { 
         currentU.b -= cost; historial.push({ type:'buy', u: currentU.u, sala: s.id, nums: [...mySelection], fecha: new Date().toLocaleString() });
         if(!s.sold) s.sold = []; mySelection.forEach(num => s.sold.push({n: num, u: currentU.u})); s.count = s.sold.length; mySelection = []; 
-        if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.endTime = Date.now() + 60000; } save(); renderNumbers();
+        if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.endTime = Date.now() + 15000; } save(); renderNumbers();
     } 
 }
 
@@ -391,8 +374,8 @@ function openM(t) {
     else if(t==='recover') { c.innerHTML = `<h3>RECUPERAR</h3><p style="font-size:11px;">Ingresa tu correo para solicitar asistencia</p><input id="rec-u" placeholder="Tu correo"><button onclick="requestPass()" style="width:100%">ENVIAR SOLICITUD</button>`; }
     else if(t==='dep') { c.innerHTML = `<h3>RECARGAR</h3><p style="font-size:10px; color:var(--primary);">Mínimo de depósito: $5.00 USD<br>Tiempo: 0 - 1H</p><div class="wallet-box">TRC20: <b>TFtX2tLdjqTnTdVAUfQ8YNACv6QUAK9LAy</b></div><input id="dep-amt" type="number" placeholder="Monto $"><div class="upload-box" onclick="document.getElementById('f-in').click()">+ COMPROBANTE<input type="file" id="f-in" hidden onchange="previewFile()"><img id="preview-img"></div><button onclick="notificarPago()" style="width:100%">ENVIAR</button>`; }
     else if(t==='with') { c.innerHTML = `<h3>RETIRAR</h3><p style="font-size:10px; color:var(--red);">Mínimo de retiro: $10.00 USD<br>Tiempo: 0 - 1H</p><input id="wi-amt" type="number" placeholder="Monto $"><input id="wi-wallet" placeholder="Tu Billetera TRC20"><button onclick="solicitarRetiro()" style="width:100%; background:var(--red); color:#fff;">SOLICITAR RETIRO</button>`; }
-    else if(t==='faq') { c.innerHTML = `<h3>PREGUNTAS FRECUENTES</h3><div style="text-align:left; font-size:12px;"><b>¿Qué es GLOBAL CASH TIME?</b><p>Es una plataforma de sorteos en tiempo real donde puedes adquirir números del 1 al 200 en diferentes salas.</p></div>`; }
-    else if(t==='nosotros') { c.innerHTML = `<h3>NOSOTROS</h3><div style="text-align:left; font-size:12px;"><p>Somos un sistema de gestión de sorteos automatizado.</p></div>`; }
+    else if(t==='faq') { c.innerHTML = `<h3>PREGUNTAS FRECUENTES</h3><div style="text-align:left; font-size:12px;"><b>¿Qué es GLOBAL CASH TIME?</b><p>Es una plataforma de sorteos en tiempo real donde puedes adquirir números del 1 al 200 en diferentes salas. Cada sala reparte 3 premios automáticos al completarse los cupos, procesando pagos de forma instantánea mediante tecnología blockchain (TRC20).</p></div>`; }
+    else if(t==='nosotros') { c.innerHTML = `<h3>NOSOTROS</h3><div style="text-align:left; font-size:12px;"><p>Somos un sistema de gestión de sorteos automatizado diseñado para brindar transparencia y rapidez. Nuestra misión es ofrecer una experiencia de juego justa donde la probabilidad y la tecnología se unen para premiar a nuestra comunidad global.</p></div>`; }
     else if(t==='contacto') { c.innerHTML = `<h3>CONTACTO</h3><div style="font-size:14px; margin:20px 0;">📧 globalcashtime@gmail.com</div>`; }
     else if(t==='hist') { 
         let displayHist = historial.filter(h => h.u === currentU?.u || h.sala === (salas[sSel]?.id || sSel+1) || (currentU && currentU.u === 'ADMIN_GLOBAL')); 
@@ -421,36 +404,13 @@ function renderNumbers() {
 }
 function toggleNum(n) { if(mySelection.includes(n)) mySelection = mySelection.filter(x => x !== n); else mySelection.push(n); renderNumbers(); }
 function updateStatus() { let s = salas[sSel], st = document.getElementById('status-txt'); if(!s) return; if(s.isSpinning) st.innerText = `GIRO ${s.currentGiro} EN PROGRESO...`; else if(s.isWaiting) st.innerText = ""; }
-function showProfile() { document.getElementById('guest-btn').style.display='none'; document.getElementById('user-profile').style.display='block'; document.getElementById('prof-name').innerText = currentU.u; }
+function showProfile() { document.getElementById('guest-btn').style.display='none'; document.getElementById('user-profile').style.display='block'; document.getElementById('prof-name').innerText = currentU.u; document.getElementById('prof-balance').innerText = `$${currentU.b.toFixed(2)}`;}
 function updateUI() { if(currentU && currentU.u !== "ADMIN_GLOBAL") { let liveU = users.find(x => x.u === currentU.u); if(liveU) { currentU.b = liveU.b; document.getElementById('prof-balance').innerText = `$${currentU.b.toFixed(2)}`; } } }
 function logout() { localStorage.removeItem('GCT_SESSION'); location.reload(); }
 function closeM() { document.getElementById('modal').style.display='none'; tempImg=""; }
 function showSentMsg() { const c = document.getElementById('modal-content'); c.innerHTML = `<h2 style="color:var(--green); margin: 50px 0;">ENVIADO</h2>`; setTimeout(() => { closeM(); }, 2000); }
-
-function register() { 
-    let u = document.getElementById('re-u').value.trim().toLowerCase(), p = document.getElementById('re-p').value; 
-    if(!u.endsWith("@gmail.com")) return alert("Solo @gmail.com"); 
-    if(p.length < 8) return alert("Mínimo 8 dígitos"); 
-    if(u && p) { 
-        window.createUser(window.auth, u, p)
-            .then(() => {
-                users.push({u, p, b: 0}); save(); alert("Registrado"); openM('auth'); 
-            })
-            .catch((e) => alert("Error: " + e.message));
-    } 
-}
-
-function login() { 
-    let u = document.getElementById('li-u').value.trim().toLowerCase(), p = document.getElementById('li-p').value; 
-    if(u==="admin_global" && p==="CASH_TIME_2026") { localStorage.setItem('GCT_SESSION', "ADMIN_GLOBAL"); location.reload(); return; } 
-    window.signIn(window.auth, u, p)
-        .then(() => {
-            let user = users.find(x=>x.u===u);
-            if(user) { localStorage.setItem('GCT_SESSION', u); location.reload(); }
-        })
-        .catch((e) => alert("Error: " + e.message));
-}
-
+function register() { let u = document.getElementById('re-u').value.trim().toLowerCase(), p = document.getElementById('re-p').value; if(!u.endsWith("@gmail.com")) return alert("Solo @gmail.com"); if(p.length < 8) return alert("Mínimo 8 dígitos"); if(u && p) { users.push({u, p, b: 0}); save(); alert("Registrado"); openM('auth'); } }
+function login() { let u = document.getElementById('li-u').value.trim().toLowerCase(), p = document.getElementById('li-p').value; if(u==="admin_global" && p==="CASH_TIME_2026") { localStorage.setItem('GCT_SESSION', "ADMIN_GLOBAL"); location.reload(); return; } let user = users.find(x=>x.u===u && x.p===p); if(user) { localStorage.setItem('GCT_SESSION', u); location.reload(); } else alert("Error"); }
 function requestPass() { let u = document.getElementById('rec-u').value; if(u) { passReqs.push({ u: u, info: "Solicitud de recuperación de clave", fecha: new Date().toLocaleString() }); save(); showSentMsg(); } }
 function previewFile() { const f = document.getElementById('f-in').files[0]; const r = new FileReader(); r.onloadend = () => { tempImg = r.result; document.getElementById('preview-img').src=tempImg; document.getElementById('preview-img').style.display='block'; }; if(f) r.readAsDataURL(f); }
 function notificarPago() { let a = parseFloat(document.getElementById('dep-amt').value); if(a >= 5 && tempImg) { pendingDeps.push({ u: currentU.u, a: a, img: tempImg, id: Date.now() }); save(); showSentMsg(); } }
@@ -477,4 +437,3 @@ function rechazarWith(idx) { let w = pendingWiths[idx]; let u = users.find(x => 
 
 </body>
 </html>
-
