@@ -240,7 +240,9 @@ function initApp() {
     draw();
 }
 
-function save() { window.dbSet(window.dbRef(window.db), { users, pendingDeps, pendingWiths, passReqs, historial, salas }); }
+function save() {
+    window.dbSet(window.dbRef(window.db, "/"), { users, pendingDeps, pendingWiths, passReqs, historial, salas });
+}
 
 function createRain() {
     const container = document.getElementById('rain-container');
