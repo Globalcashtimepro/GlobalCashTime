@@ -14,8 +14,8 @@ app.post('/create-payment', async (req, res) => {
 
         // CORRECCIÓN: NOWPayments tiene un mínimo (aprox $10 USD). 
         // Si el monto es menor a 10, lo ajustamos para evitar la "X" roja de error.
-        if (parseFloat(amount) < 10) {
-            amount = "10.00"; 
+        if (parseFloat(amount) < 15) {
+            amount = "15.00"; 
         }
 
         const response = await axios.post(
