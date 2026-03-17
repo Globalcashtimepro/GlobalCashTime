@@ -247,7 +247,6 @@ function initApp() {
         document.getElementById('sala-txt').innerText = `SALA #${salas[sSel]?.id || (sSel+1)}`;
         updateUI();
 
-        // Actualizar la vista actual del admin si está abierta
         const adminView = document.getElementById('pending-deps');
         if(adminView && adminView.offsetParent !== null) {
             const currentView = adminView.getAttribute('data-view');
@@ -438,7 +437,7 @@ function openM(t) {
     else if(t==='dep') { 
         c.innerHTML = `<h3>RECARGAR</h3><p style="font-size:10px; color:var(--primary);">Mínimo de depósito: $5.00 USD<br>Tiempo: 0 - 1H</p>
         <div class="label-gold">BILLETERA USDT (TRC20)</div>
-        <div class="wallet-box" onclick="copyWallet()">TFtX2tLdjqTnTdVAUfQ8YNACv6QUAK9LAy</div>
+        <div class="wallet-box" onclick="copyWallet()">TMLuMv3U9r57R5XvLqEsh1U5m8tP9Yg8U4</div>
         <input id="dep-amt" type="number" placeholder="Monto $">
         <div class="upload-box" onclick="document.getElementById('dep-img').click()">SUBIR COMPROBANTE</div>
         <input type="file" id="dep-img" hidden accept="image/*" onchange="previewImg(this)">
@@ -469,10 +468,10 @@ function openM(t) {
     else if(t==='nosotros') { c.innerHTML = `<h3>NOSOTROS</h3><div style="text-align:left; font-size:12px;"><p>Somos un sistema de gestión de sorteos automatizado diseñado para brindar transparencia y rapidez. Nuestra misión es ofrecer una experiencia de juego justa donde la probabilidad y la tecnología se unen para premiar a nuestra comunidad global.</p></div>`; }
     else if(t==='contacto') { c.innerHTML = `<h3>CONTACTO</h3><div style="font-size:14px; margin:20px 0;">📧 soporte@globalcashtime.com</div>`; }
     else if(t==='hist') { 
-        let currentAlias = currentU ? (currentU.user || currentU.u) : '';
-        let displayHist = historial.filter(h => h.u === currentAlias || h.sala === (salas[sSel]?.id || sSel+1) || (currentU && currentU.u === 'ADMIN_GLOBAL')); 
+        // MODIFICADO: Ahora muestra el historial completo de todos los usuarios
+        let displayHist = historial; 
         c.innerHTML = `<h3>HISTORIAL</h3><div style="max-height:250px; overflow-y:auto; font-size:11px; text-align:left;">` + 
-        displayHist.reverse().map(h => {
+        displayHist.slice().reverse().map(h => {
             let salaTag = `<span style="color:var(--primary)">[SALA ${h.sala}]</span>`;
             let msg = h.type === 'buy' ? `${salaTag} <b style="color:var(--primary)">${h.u}</b> compró: [${h.nums.join(', ')}]` : 
                       h.type === 'win' ? `${salaTag} <b style="color:var(--green)">GANADOR: ${h.u}</b> (Nº${h.ganador}) - $${h.premio}` : 
@@ -492,7 +491,7 @@ function copyRefLink() {
 }
 
 function copyWallet() {
-    navigator.clipboard.writeText("TFtX2tLdjqTnTdVAUfQ8YNACv6QUAK9LAy").then(() => alert("¡Billetera copiada!"));
+    navigator.clipboard.writeText("TMLuMv3U9r57R5XvLqEsh1U5m8tP9Yg8U4").then(() => alert("¡Billetera copiada!"));
 }
 
 function previewImg(input) {
@@ -605,7 +604,7 @@ function editBal(idx, amt) {
     users[idx].b += amt; 
     if(users[idx].b < 0) users[idx].b = 0; 
     save(); 
-    renderUserDB(); // Actualiza la lista de usuarios en tiempo real
+    renderUserDB(); 
 }
 
 function aprobarDep(idx) { 
@@ -615,7 +614,7 @@ function aprobarDep(idx) {
     historial.push({ type: 'sys', u: d.u, msg: `Depósito Aprobado: +$${d.a}`, sala: 'SISTEMA', fecha: new Date().toLocaleString() }); 
     pendingDeps.splice(idx, 1); 
     save(); 
-    renderAdmin(); // Desaparece la notificación inmediatamente
+    renderAdmin(); 
 }
 
 function aprobarWith(idx) { 
@@ -623,7 +622,7 @@ function aprobarWith(idx) {
     historial.push({ type: 'sys', u: w.u, msg: `Retiro Aprobado: -$${w.a}`, sala: 'SISTEMA', fecha: new Date().toLocaleString() }); 
     pendingWiths.splice(idx, 1); 
     save(); 
-    renderAdmin(); // Desaparece la notificación inmediatamente
+    renderAdmin(); 
 }
 
 function rechazarWith(idx) { 
@@ -633,7 +632,7 @@ function rechazarWith(idx) {
     historial.push({ type: 'sys', u: w.u, msg: `Retiro RECHAZADO: $${w.a}`, sala: 'SISTEMA', fecha: new Date().toLocaleString() }); 
     pendingWiths.splice(idx, 1); 
     save(); 
-    renderAdmin(); // Desaparece la notificación inmediatamente
+    renderAdmin(); 
 }
 </script>
 
@@ -641,3 +640,4 @@ function rechazarWith(idx) {
 
 </body>
 </html>
+
