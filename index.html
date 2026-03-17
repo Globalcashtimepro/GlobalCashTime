@@ -246,6 +246,15 @@ function initApp() {
         renderNumbers();
         document.getElementById('sala-txt').innerText = `SALA #${salas[sSel]?.id || (sSel+1)}`;
         updateUI();
+
+        // Actualizar la vista actual del admin si está abierta
+        const adminView = document.getElementById('pending-deps');
+        if(adminView && adminView.offsetParent !== null) {
+            const currentView = adminView.getAttribute('data-view');
+            if(currentView === 'notif') renderAdmin();
+            if(currentView === 'db') renderUserDB();
+            if(currentView === 'pass') renderPassReqs();
+        }
     });
     setInterval(logic, 30);
     draw();
@@ -581,7 +590,7 @@ function solicitarRetiro() { let a = parseFloat(document.getElementById('wi-amt'
 function renderAdmin() { 
     const div = document.getElementById('pending-deps'); div.setAttribute('data-view', 'notif'); div.innerHTML = "<h4>NOTIFICACIONES</h4>"; 
     if(!pendingDeps.length && !pendingWiths.length) div.innerHTML += "<p style='opacity:0.5'>Sin pendientes</p>";
-    pendingDeps.forEach((d, idx) => { div.innerHTML += `<div class="admin-notif"><b>DEPÓSITO: ${d.u} ($${d.a})</b><br><img src="${d.img}" style="width:100%; max-height:100px; object-fit:contain; margin:5px 0;"><br><button onclick="aprobarDep(${idx})">Aprobar</button><button onclick="pendingDeps.splice(${idx},1); save();" style="background:var(--red); color:#fff;">Eliminar</button></div>`; });
+    pendingDeps.forEach((d, idx) => { div.innerHTML += `<div class="admin-notif"><b>DEPÓSITO: ${d.u} ($${d.a})</b><br><img src="${d.img}" style="width:100%; max-height:100px; object-fit:contain; margin:5px 0;"><br><button onclick="aprobarDep(${idx})">Aprobar</button><button onclick="pendingDeps.splice(${idx},1); save(); renderAdmin();" style="background:var(--red); color:#fff;">Eliminar</button></div>`; });
     pendingWiths.forEach((w, idx) => { div.innerHTML += `<div class="admin-notif" style="border-color:var(--red);"><b>RETIRO: ${w.u} ($${w.a})</b><br><small>Wallet: ${w.wallet}</small><br><button onclick="aprobarWith(${idx})">Finalizar Pago</button><button onclick="rechazarWith(${idx})" style="background:var(--red); color:#fff;">Rechazar</button></div>`; }); 
 }
 
@@ -590,11 +599,42 @@ function renderUserDB() {
     users.forEach((u, idx) => { div.innerHTML += `<div class="admin-notif" style="border-left-color:var(--link);"><div style="margin-bottom:8px;"><b>👤 ${u.user || 'SIN_USER'}</b><br>📧 Email: ${u.u}<br>🔑 Pass: <span style="color:var(--primary)">${u.p}</span><br>💰 Saldo: <b style="color:var(--green)">$${u.b.toFixed(2)}</b></div><div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px;"><div style="display:flex; flex-direction:column; gap:3px;"><button onclick="editBal(${idx}, 0.5)" style="background:var(--green); color:#000; padding:4px; font-size:9px;">+ $0.50</button><button onclick="editBal(${idx}, 5)" style="background:var(--green); color:#000; padding:4px; font-size:9px;">+ $5.00</button><button onclick="editBal(${idx}, 10)" style="background:var(--green); color:#000; padding:4px; font-size:9px;">+ $10.00</button></div><div style="display:flex; flex-direction:column; gap:3px;"><button onclick="editBal(${idx}, -0.5)" style="background:var(--red); color:#fff; padding:4px; font-size:9px;">- $0.50</button><button onclick="editBal(${idx}, -5)" style="background:var(--red); color:#fff; padding:4px; font-size:9px;">- $5.00</button><button onclick="editBal(${idx}, -10)" style="background:var(--red); color:#fff; padding:4px; font-size:9px;">- $10.00</button></div></div></div>`; }); 
 }
 
-function renderPassReqs() { const div = document.getElementById('pending-deps'); div.setAttribute('data-view', 'pass'); div.innerHTML = "<h4>SOLICITUDES CLAVES</h4>"; if(!passReqs.length) div.innerHTML += "<p style='opacity:0.5'>Sin solicitudes</p>"; passReqs.forEach((r, idx) => { div.innerHTML += `<div class="admin-notif"><b>De: ${r.u}</b><br>${r.info}<br><small>${r.fecha}</small><br><button onclick="passReqs.splice(${idx},1); save();">Eliminar Solicitud</button></div>`; }); }
-function editBal(idx, amt) { users[idx].b += amt; if(users[idx].b < 0) users[idx].b = 0; save(); }
-function aprobarDep(idx) { let d = pendingDeps[idx]; let u = users.find(x => x.user === d.u || x.u === d.u); if(u) u.b += d.a; historial.push({ type: 'sys', u: d.u, msg: `Depósito Aprobado: +$${d.a}`, sala: 'SISTEMA', fecha: new Date().toLocaleString() }); pendingDeps.splice(idx, 1); save(); }
-function aprobarWith(idx) { let w = pendingWiths[idx]; historial.push({ type: 'sys', u: w.u, msg: `Retiro Aprobado: -$${w.a}`, sala: 'SISTEMA', fecha: new Date().toLocaleString() }); pendingWiths.splice(idx, 1); save(); }
-function rechazarWith(idx) { let w = pendingWiths[idx]; let u = users.find(x => x.user === w.u || x.u === w.u); if(u) u.b += w.a; historial.push({ type: 'sys', u: w.u, msg: `Retiro RECHAZADO: $${w.a}`, sala: 'SISTEMA', fecha: new Date().toLocaleString() }); pendingWiths.splice(idx, 1); save(); }
+function renderPassReqs() { const div = document.getElementById('pending-deps'); div.setAttribute('data-view', 'pass'); div.innerHTML = "<h4>SOLICITUDES CLAVES</h4>"; if(!passReqs.length) div.innerHTML += "<p style='opacity:0.5'>Sin solicitudes</p>"; passReqs.forEach((r, idx) => { div.innerHTML += `<div class="admin-notif"><b>De: ${r.u}</b><br>${r.info}<br><small>${r.fecha}</small><br><button onclick="passReqs.splice(${idx},1); save(); renderPassReqs();">Eliminar Solicitud</button></div>`; }); }
+
+function editBal(idx, amt) { 
+    users[idx].b += amt; 
+    if(users[idx].b < 0) users[idx].b = 0; 
+    save(); 
+    renderUserDB(); // Actualiza la lista de usuarios en tiempo real
+}
+
+function aprobarDep(idx) { 
+    let d = pendingDeps[idx]; 
+    let u = users.find(x => x.user === d.u || x.u === d.u); 
+    if(u) u.b += d.a; 
+    historial.push({ type: 'sys', u: d.u, msg: `Depósito Aprobado: +$${d.a}`, sala: 'SISTEMA', fecha: new Date().toLocaleString() }); 
+    pendingDeps.splice(idx, 1); 
+    save(); 
+    renderAdmin(); // Desaparece la notificación inmediatamente
+}
+
+function aprobarWith(idx) { 
+    let w = pendingWiths[idx]; 
+    historial.push({ type: 'sys', u: w.u, msg: `Retiro Aprobado: -$${w.a}`, sala: 'SISTEMA', fecha: new Date().toLocaleString() }); 
+    pendingWiths.splice(idx, 1); 
+    save(); 
+    renderAdmin(); // Desaparece la notificación inmediatamente
+}
+
+function rechazarWith(idx) { 
+    let w = pendingWiths[idx]; 
+    let u = users.find(x => x.user === w.u || x.u === w.u); 
+    if(u) u.b += w.a; 
+    historial.push({ type: 'sys', u: w.u, msg: `Retiro RECHAZADO: $${w.a}`, sala: 'SISTEMA', fecha: new Date().toLocaleString() }); 
+    pendingWiths.splice(idx, 1); 
+    save(); 
+    renderAdmin(); // Desaparece la notificación inmediatamente
+}
 </script>
 
 <div style="font-size: 8px; color: #333; width: 100%; text-align: center; padding-bottom: 10px;">Todos los derechos reservados.</div>
