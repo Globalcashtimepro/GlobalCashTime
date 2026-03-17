@@ -50,7 +50,7 @@
         .promo-giros { display: flex; justify-content: center; gap: 10px; font-size: 12px; font-weight: bold; }
         .giro-tag { background: #222; padding: 5px 10px; border-radius: 5px; border: 1px solid var(--primary-dark); }
 
-        .salas-grid { display: grid; grid-template-columns: repeat(25, 1fr); gap: 4px; margin-bottom: 200px; overflow-x: auto; padding-bottom: 10px; }
+        .salas-grid { display: grid; grid-template-columns: repeat(25, 1fr); gap: 4px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 10px; }
         .sala-card { background: #0a0a0a; border: 1px solid #333; border-radius: 6px; padding: 4px; text-align: center; cursor: pointer; transition: 0.3s; min-width: 35px; }
         .sala-card b { font-size: 8px; display: block; }
         .sala-card div { font-size: 7px; opacity: 0.8; }
@@ -80,18 +80,6 @@
         footer { width: 100%; padding: 30px 0; background: #0a0a0a; border-top: 1px solid #222; text-align: center; color: #555; font-size: 12px; }
         .f-links { margin-top: 10px; display: flex; justify-content: center; gap: 15px; color: var(--link); cursor: pointer; }
         
-        .refer-carousel { overflow: hidden; white-space: nowrap; background: #0a0a0a; border-top: 1px solid #333; border-bottom: 1px solid #333; padding: 10px 0; margin-bottom: 20px; }
-        .refer-track { display: inline-block; animation: scroll-refer 30s linear infinite; }
-        .refer-item { display: inline-block; padding: 0 40px; font-size: 11px; color: var(--primary); font-weight: bold; }
-        @keyframes scroll-refer { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-
-        /* Carrusel Ganadores */
-        .winners-carousel { background: rgba(0, 255, 102, 0.1); border-bottom: 1px solid var(--green); overflow: hidden; white-space: nowrap; padding: 5px 0; width: 100%; }
-        .winners-track { display: inline-block; animation: scroll-winners 20s linear infinite; }
-        .winner-tag { display: inline-block; padding: 0 30px; font-size: 12px; color: var(--green); font-weight: bold; }
-
-        @keyframes scroll-winners { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-
         @media (max-width: 1100px) { .salas-grid { grid-template-columns: repeat(10, 1fr); } }
         @media (max-width: 600px) { .salas-grid { grid-template-columns: repeat(5, 1fr); } .left-col, .right-col { width: 100%; } }
     </style>
@@ -100,26 +88,12 @@
 
 <div class="bg-glow" id="rain-container"></div>
 
-<div class="winners-carousel">
-    <div class="winners-track" id="winners-track">
-        <span class="winner-tag">¡Mucha Suerte a todos los participantes! 🔱</span>
-    </div>
-</div>
-
 <header>
     <div style="font-weight: 900; font-size: 26px; color: var(--primary);">🔱GLOBAL CASH TIME🔱</div>
     <div id="guest-btn" style="margin-top:10px;"><button onclick="openM('auth')" style="width:auto; padding:8px 30px;">LOGIN / REGISTRO</button></div>
 </header>
 
 <div class="main-container">
-
-    <div class="refer-carousel">
-        <div class="refer-track" id="refer-track-list">
-            <span class="refer-item">Por cada referido que participe 20 veces Ganas $1 USDT de por vida</span>
-            <span class="refer-item">Si refieres a 10 personas y participan 20 veces Ganas $10 USDT de por vida</span>
-        </div>
-    </div>
-
     <div id="user-profile" class="profile-card">
         <div style="display:flex; justify-content:space-between; align-items:center;">
             <div><span class="label-gold">CUENTA</span><div id="prof-name" style="font-weight:900;">---</div></div>
@@ -148,7 +122,7 @@
         <div class="promo-subtitle">3 ENTRE 200 | ¡Bienvenido! al Sorteo por Participación</div>
         <div class="promo-giros">
             <div class="giro-tag">GIRO 1: $5</div>
-            <div class="giro-tag">GIRO 2: $15</div>
+            <div class="giro-tag">GIRO 2: $10</div>
             <div class="giro-tag">GIRO 3: $50 🏆</div>
         </div>
         <div style="font-size: 10px; margin-top: 10px; color: var(--primary); font-weight: bold;">¡QUE GANE EL MEJOR!</div>
@@ -259,32 +233,11 @@ function initApp() {
         sSel = parseInt(localStorage.getItem('GCT_S_SEL')) || 0;
         renderGrid();
         renderNumbers();
-        renderWinnersTrack();
-        renderReferTrack();
         document.getElementById('sala-txt').innerText = `SALA #${salas[sSel]?.id || (sSel+1)}`;
         updateUI();
     });
     setInterval(logic, 30);
     draw();
-}
-
-function renderWinnersTrack() {
-    const track = document.getElementById('winners-track');
-    let wins = historial.filter(h => h.type === 'win').slice(-10).reverse();
-    if(wins.length > 0) {
-        track.innerHTML = wins.map(w => `<span class="winner-tag">🏆 ${w.u} GANÓ $${w.premio} EN SALA #${w.sala} 🔱</span>`).join('') + track.innerHTML;
-    }
-}
-
-function renderReferTrack() {
-    const track = document.getElementById('refer-track-list');
-    let html = "";
-    users.forEach(u => {
-        let parts = 0;
-        historial.forEach(h => { if(h.type==='buy' && h.u === (u.user || u.u)) parts += (h.nums ? h.nums.length : 1); });
-        if(parts > 0) html += `<span class="refer-item">👤 ${u.user || u.u}: ${parts} Participaciones</span>`;
-    });
-    if(html !== "") track.innerHTML = html + track.innerHTML;
 }
 
 function save() {
@@ -317,7 +270,7 @@ function logic() {
     salas.forEach((s, i) => {
         if(s.isSpinning) {
             let timeLeft = s.endTime - now;
-            let duration = 15000; 
+            let duration = 60000; 
             let progress = Math.min(1, (duration - timeLeft) / duration);
             let speed = 0.5 * Math.pow(1 - progress, 2.5); 
 
@@ -366,7 +319,7 @@ function logic() {
                         s.isWaiting = false; 
                         s.currentGiro++; 
                         s.isSpinning = true; 
-                        s.endTime = now + 15000; 
+                        s.endTime = now + 60000; 
                     } else {
                         s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; s.isWaiting = false; s.isSpinning = false;
                         if(i === sSel) { 
@@ -420,7 +373,7 @@ function comprarSeleccion() {
     mySelection.forEach(num => s.sold.push({n: num, u: alias})); 
     s.count = s.sold.length; 
     mySelection = []; 
-    if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.endTime = Date.now() + 15000; } 
+    if(s.count >= 200) { s.currentGiro = 1; s.isSpinning = true; s.endTime = Date.now() + 60000; } 
     save(); 
     renderNumbers();
 }
@@ -476,6 +429,7 @@ function renderNumbers() {
     let takenNums = new Set((s.sold || []).map(x => x.n));
     let selNums = new Set(mySelection);
     
+    // Optimizamos usando un fragmento para evitar múltiples repintes
     let html = "";
     for(let n=1; n<=200; n++) { 
         let cls = takenNums.has(n) ? 'taken' : (selNums.has(n) ? 'selected' : '');
@@ -559,4 +513,3 @@ function rechazarWith(idx) { let w = pendingWiths[idx]; let u = users.find(x => 
 
 </body>
 </html>
-
