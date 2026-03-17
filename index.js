@@ -1,33 +1,51 @@
+const express = require('express');
 const axios = require('axios');
+const app = express();
+const port = process.env.PORT || 3000;
 
-async function crearPagoUSDT(montoUsuario) {
-    // Si el usuario pone 10, enviamos 10.50 como margen de seguridad 
-    // para que JAMÁS caiga por debajo del mínimo de la red
-    const montoConMargen = parseFloat(montoUsuario) + 0.50;
+app.use(express.json());
 
-    const data = {
-        "price_amount": montoConMargen,      // Envía 10.50 para asegurar el mínimo
-        "price_currency": "usd",
-        "pay_currency": "usdttrc20",         // Red TRC20
-        "fixed_rate": true,                  // CONGELA EL PRECIO: No cambia
-        "is_fixed_rate": true,
-        "is_fee_paid_by_user": true,         // El usuario cubre la comisión
-        "ipn_callback_url": "https://global-cash-time.vercel.app/webhook-p",
-        "order_id": "PAGO_" + Date.now()
-    };
+// Sustituye con tu API Key real de NOWPayments
+const API_KEY = 'TU_API_KEY_AQUI'; 
 
+app.post('/create-payment', async (req, res) => {
     try {
-        const response = await axios.post('https://api.nowpayments.io/v1/payment', data, {
-            headers: {
-                'x-api-key': 'TU_API_KEY_AQUI', // <--- PEGA TU API KEY AQUÍ
-                'Content-Type': 'application/json'
+        let { amount, currency } = req.body;
+
+        // CORRECCIÓN: NOWPayments tiene un mínimo (aprox $10 USD). 
+        // Si el monto es menor a 10, lo ajustamos para evitar la "X" roja de error.
+        if (parseFloat(amount) < 10) {
+            amount = "10.00"; 
+        }
+
+        const response = await axios.post(
+            'https://api.nowpayments.io/v1/payment',
+            {
+                price_amount: amount,
+                price_currency: 'usd',
+                pay_currency: currency || 'usdttrx', // USDT en red TRON según tu captura
+                ipn_callback_url: 'https://tu-dominio.com/callback',
+                order_id: 'RG-' + Math.random().toString(36).substring(7),
+                order_description: 'Compra de números'
+            },
+            {
+                headers: {
+                    'x-api-key': API_KEY,
+                    'Content-Type': 'application/json'
+                }
             }
-        });
+        );
 
-        console.log("URL de pago sin errores:", response.data.invoice_url);
-        return response.data.invoice_url;
-
+        res.json(response.data);
     } catch (error) {
-        console.error("Error técnico:", error.response ? error.response.data : error.message);
+        console.error("Error detallado:", error.response ? error.response.data : error.message);
+        res.status(500).json({ 
+            error: "Error al crear el pago", 
+            details: error.response ? error.response.data : error.message 
+        });
     }
-}
+});
+
+app.listen(port, () => {
+    console.log(`Servidor corriendo en el puerto ${port}`);
+});
