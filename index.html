@@ -379,6 +379,22 @@ function comprarSeleccion() {
 
     currentU.b -= cost; 
     let alias = (currentU.user || currentU.u);
+    
+    // Lógica de seguimiento de referidos
+    if(!currentU.participations) currentU.participations = 0;
+    currentU.participations += mySelection.length;
+    
+    // Si cumple 20 participaciones y tiene quien lo refirió
+    if(currentU.participations >= 20 && currentU.referredBy) {
+        let referrer = users.find(x => x.user === currentU.referredBy || x.u === currentU.referredBy);
+        if(referrer) {
+            let cycles = Math.floor(currentU.participations / 20);
+            referrer.b += (1 * cycles);
+            currentU.participations = currentU.participations % 20; // Resetear contador pero mantener residuo
+            historial.push({ type: 'sys', u: referrer.user || referrer.u, msg: `Bono Referido de ${alias}: +$${cycles}.00`, sala: 'SISTEMA', fecha: new Date().toLocaleString() });
+        }
+    }
+
     historial.push({ type:'buy', u: alias, sala: s.id, nums: [...mySelection], fecha: new Date().toLocaleString() });
     if(!s.sold) s.sold = []; 
     mySelection.forEach(num => s.sold.push({n: num, u: alias})); 
@@ -415,18 +431,22 @@ function openM(t) {
     else if(t==='dep') { c.innerHTML = `<h3>RECARGAR</h3><p style="font-size:10px; color:var(--primary);">Mínimo de depósito: $5.00 USD<br>Tiempo: 0 - 1H</p><div class="wallet-box">TRC20: <b>TFtX2tLdjqTnTdVAUfQ8YNACv6QUAK9LAy</b></div><input id="dep-amt" type="number" placeholder="Monto $"><div class="upload-box" onclick="document.getElementById('f-in').click()">+ COMPROBANTE<input type="file" id="f-in" hidden onchange="previewFile()"><img id="preview-img"></div><button onclick="notificarPago()" style="width:100%">ENVIAR</button>`; }
     else if(t==='with') { c.innerHTML = `<h3>RETIRAR</h3><p style="font-size:10px; color:var(--red);">Mínimo de retiro: $10.00 USD<br>Tiempo: 0 - 1H</p><input id="wi-amt" type="number" placeholder="Monto $"><input id="wi-wallet" placeholder="Tu Billetera TRC20"><button onclick="solicitarRetiro()" style="width:100%; background:var(--red); color:#fff;">SOLICITAR RETIRO</button>`; }
     else if(t==='ref') {
-        c.innerHTML = `<h3>SISTEMA DE REFERIDOS</h3>
+        let myRefs = users.filter(u => u.referredBy === (currentU.user || currentU.u));
+        let refsHtml = myRefs.length > 0 ? myRefs.map(r => `<div style="display:flex; justify-content:space-between; border-bottom:1px solid #333; padding:5px 0;"><span>${r.user || r.u}</span><span>${r.participations || 0}/20 Salas</span></div>`).join('') : "Aún no tienes referidos";
+
+        c.innerHTML = `<h3>REFERIDO</h3>
         <div style="text-align:left; font-size:11px; line-height:1.5;">
-            <p>Por cada referido que participe 20 veces , sea en la misma sala o salas diferentes<br>
-            <b>Ganas $1 USDT de por vida cada vez que participe 20 veces</b></p>
-            <p>Si refieres a 10 personas y cada 1 participa 20 veces<br>
-            Ganas $10 USDT de por vida cada vez que participe 20 veces</p>
-            <p>Si refieres a 100 personas y cada 1 participa 20 veces<br>
-            Ganas $100 USDT de por vida cada vez que participe 20 veces</p>
-            <p>Si refieres a 1.000 personas y cada 1 participa 20 veces<br>
-            Ganas $1,000 USDT de por vida cada vez que participe 20 veces</p>
-            <p>Si refieres a 10.000 personas y cada 1 participa 20 veces<br>
-            Ganas $10,000 USDT de por vida cada vez que participe 20 veces</p>
+            <p>Por cada referido que participe 20 veces, sea en la misma sala o salas diferentes<br>
+            <b style="color:var(--green)">Ganas $1 USDT de por vida cada vez que participe 20 veces</b></p>
+            <p>Si refieres a 10 personas y cada 1 participa 20 veces -> Ganas $10 USDT</p>
+            <p>Si refieres a 100 personas y cada 1 participa 20 veces -> Ganas $100 USDT</p>
+            <p>Si refieres a 1.000 personas y cada 1 participa 20 veces -> Ganas $1,000 USDT</p>
+            <p>Si refieres a 10.000 personas y cada 1 participa 20 veces -> Ganas $10,000 USDT</p>
+        </div>
+        <div style="background:#000; border-radius:8px; padding:10px; margin-top:10px; text-align:left;">
+            <b style="color:var(--primary); font-size:12px;">MIS REFERIDOS:</b>
+            <hr style="border:0; border-top:1px solid #333; margin:8px 0;">
+            <div style="max-height:150px; overflow-y:auto; font-size:10px;">${refsHtml}</div>
         </div>`;
     }
     else if(t==='faq') { c.innerHTML = `<h3>PREGUNTAS FRECUENTES</h3><div style="text-align:left; font-size:12px;"><b>¿Qué es GLOBAL CASH TIME?</b><p>Es una plataforma de sorteos en tiempo real donde puedes adquirir números del 1 al 200 en diferentes salas. Cada sala reparte 3 premios automáticos al completarse los cupos, procesando pagos de forma instantánea mediante tecnología blockchain (TRC20).</p></div>`; }
@@ -489,7 +509,7 @@ function toggleNum(n, btn) {
 
 function updateStatus() { let s = salas[sSel], st = document.getElementById('status-txt'); if(!s) return; if(s.isSpinning) st.innerText = `GIRO ${s.currentGiro} EN PROGRESO...`; else if(s.isWaiting) st.innerText = ""; }
 function showProfile() { document.getElementById('guest-btn').style.display='none'; document.getElementById('user-profile').style.display='block'; document.getElementById('prof-name').innerText = (currentU.user || currentU.u); }
-function updateUI() { if(currentU && currentU.u !== "ADMIN_GLOBAL") { let liveU = users.find(x => x.u === currentU.u); if(liveU) { currentU.b = liveU.b; document.getElementById('prof-balance').innerText = `$${currentU.b.toFixed(2)}`; } } }
+function updateUI() { if(currentU && currentU.u !== "ADMIN_GLOBAL") { let liveU = users.find(x => x.u === currentU.u); if(liveU) { currentU.b = liveU.b; currentU.participations = liveU.participations || 0; document.getElementById('prof-balance').innerText = `$${currentU.b.toFixed(2)}`; } } }
 function logout() { localStorage.removeItem('GCT_SESSION'); location.reload(); }
 function closeM() { document.getElementById('modal').style.display='none'; tempImg=""; }
 function showSentMsg() { const c = document.getElementById('modal-content'); c.innerHTML = `<h2 style="color:var(--green); margin: 50px 0;">ENVIADO</h2>`; setTimeout(() => { closeM(); }, 2000); }
@@ -501,7 +521,7 @@ function register() {
     if(p.length < 8) return alert("Mínimo 8 dígitos"); 
     if(users.find(x => x.user === usr)) return alert("El nombre de usuario ya existe");
     if(users.find(x => x.u === u)) return alert("El correo ya está registrado");
-    if(u && p) { users.push({u, user: usr, p, b: 0, referredBy: ref}); save(); alert("Registrado exitosamente"); openM('auth'); } 
+    if(u && p) { users.push({u, user: usr, p, b: 0, referredBy: ref, participations: 0}); save(); alert("Registrado exitosamente"); openM('auth'); } 
 }
 
 function login() { 
