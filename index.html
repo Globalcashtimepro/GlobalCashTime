@@ -283,6 +283,8 @@ function logic() {
             let timeLeft = s.endTime - now;
             let duration = 60000; 
             let progress = Math.min(1, (duration - timeLeft) / duration);
+            
+            // DESACELERACIÓN PROGRESIVA, LENTA Y NATURAL
             let speed = 0.5 * Math.pow(1 - progress, 2.5); 
 
             if(timeLeft <= 0 || speed <= 0.0001) {
@@ -380,17 +382,15 @@ function comprarSeleccion() {
     currentU.b -= cost; 
     let alias = (currentU.user || currentU.u);
     
-    // Lógica de seguimiento de referidos
     if(!currentU.participations) currentU.participations = 0;
     currentU.participations += mySelection.length;
     
-    // Si cumple 20 participaciones y tiene quien lo refirió
     if(currentU.participations >= 20 && currentU.referredBy) {
         let referrer = users.find(x => x.user === currentU.referredBy || x.u === currentU.referredBy);
         if(referrer) {
             let cycles = Math.floor(currentU.participations / 20);
             referrer.b += (1 * cycles);
-            currentU.participations = currentU.participations % 20; // Resetear contador pero mantener residuo
+            currentU.participations = currentU.participations % 20; 
             historial.push({ type: 'sys', u: referrer.user || referrer.u, msg: `Bono Referido de ${alias}: +$${cycles}.00`, sala: 'SISTEMA', fecha: new Date().toLocaleString() });
         }
     }
