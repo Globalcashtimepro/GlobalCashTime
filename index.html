@@ -44,6 +44,9 @@
         .label-gold { color: var(--primary); font-size: 10px; font-weight: bold; text-transform: uppercase; }
         .section-box { background: var(--card); padding: 15px; border-radius: 15px; margin-bottom: 20px; text-align: center; border: 1px solid #222; }
         
+        .ref-container { margin-top: 10px; font-size: 12px; color: #aaa; text-align: left; display: flex; align-items: center; gap: 8px; }
+        .btn-copy-link { background: var(--primary); color: #000; padding: 2px 8px; border-radius: 20px; font-size: 9px; font-weight: 900; border: none; cursor: pointer; }
+
         .info-promo-box { background: rgba(20, 20, 20, 0.8); border: 1px solid #333; border-radius: 12px; padding: 15px; margin-bottom: 20px; text-align: center; }
         .promo-title { color: var(--green); font-weight: 900; font-size: 18px; margin-bottom: 5px; }
         .promo-subtitle { font-size: 13px; color: #ccc; margin-bottom: 10px; }
@@ -96,9 +99,15 @@
 <div class="main-container">
     <div id="user-profile" class="profile-card">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div><span class="label-gold">CUENTA</span><div id="prof-name" style="font-weight:900;">---</div></div>
-            <div style="text-align:right;"><span class="label-gold">SALDO</span><div id="prof-balance" style="color:var(--green); font-weight:900; font-size:24px;">$0.00</div></div>
+            <div><span class="label-gold">CUENTA</span><div id="prof-name" style="font-weight:900; font-size: 22px;">---</div></div>
+            <div style="text-align:right;"><span class="label-gold">SALDO</span><div id="prof-balance" style="color:var(--green); font-weight:900; font-size:28px;">$0.00</div></div>
         </div>
+        
+        <div class="ref-container">
+            CÓDIGO REFERIDO: <span id="prof-ref" style="color:var(--primary); font-weight:900;">---</span>
+            <button class="btn-copy-link" onclick="copyRef()">COPIAR LINK</button>
+        </div>
+
         <div style="display:flex; gap:5px; margin-top:15px; flex-wrap: wrap;">
             <button onclick="openM('dep')" style="flex:1; min-width: 80px;">DEPOSITAR</button>
             <button onclick="openM('with')" style="flex:1; min-width: 80px; background:var(--red); color:#fff;">RETIRAR</button>
@@ -226,6 +235,7 @@ function initApp() {
                 if(found) {
                     currentU = found;
                     document.getElementById('prof-balance').innerText = `$${currentU.b.toFixed(2)}`;
+                    document.getElementById('prof-ref').innerText = currentU.user;
                 }
             }
             if(currentU) showProfile();
@@ -424,6 +434,13 @@ function openM(t) {
         }).join('') + `</div>`; 
     }
     c.innerHTML += `<button onclick="closeM()" style="background:#444; margin-top:10px; width:100%;">CERRAR</button>`; 
+}
+
+function copyRef() {
+    const url = window.location.origin + window.location.pathname + "?ref=" + currentU.user;
+    navigator.clipboard.writeText(url).then(() => {
+        alert("¡Link de referido copiado!");
+    });
 }
 
 function togglePass(id) { const el = document.getElementById(id); el.type = el.type === 'password' ? 'text' : 'password'; }
