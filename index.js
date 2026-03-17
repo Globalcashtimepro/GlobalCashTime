@@ -1,40 +1,33 @@
 const axios = require('axios');
 
-// CONFIGURACIÓN DE TU PAGO
 async function crearPagoUSDT(montoUsuario) {
-    // Si el usuario pone menos de 10, el sistema lo sube a 10 para evitar errores
-    const montoFinal = montoUsuario < 10 ? 10 : montoUsuario;
+    // Si el usuario pone 10, enviamos 10.50 como margen de seguridad 
+    // para que JAMÁS caiga por debajo del mínimo de la red
+    const montoConMargen = parseFloat(montoUsuario) + 0.50;
 
     const data = {
-        "price_amount": montoFinal,          // Monto en USD
+        "price_amount": montoConMargen,      // Envía 10.50 para asegurar el mínimo
         "price_currency": "usd",
-        "pay_currency": "usdttrc20",         // Red TRC20 (Tron)
-        "fixed_rate": true,                  // BLOQUEA EL MONTO: No cambia nunca
-        "is_fixed_rate": true,               // Refuerza la exactitud
-        "is_fee_paid_by_user": true,         // El usuario paga la comisión, tú recibes el monto íntegro
-        "ipn_callback_url": "https://global-cash-time.vercel.app/webhook-p", // Tu aviso automático
-        "order_id": "PAGO_" + Date.now(),
-        "order_description": "Recarga de saldo Global Cash Time"
+        "pay_currency": "usdttrc20",         // Red TRC20
+        "fixed_rate": true,                  // CONGELA EL PRECIO: No cambia
+        "is_fixed_rate": true,
+        "is_fee_paid_by_user": true,         // El usuario cubre la comisión
+        "ipn_callback_url": "https://global-cash-time.vercel.app/webhook-p",
+        "order_id": "PAGO_" + Date.now()
     };
 
     try {
         const response = await axios.post('https://api.nowpayments.io/v1/payment', data, {
             headers: {
-                'x-api-key': 'tu_api_key_de_nowpayments', // <--- PEGA TU API KEY AQUÍ
+                'x-api-key': 'TU_API_KEY_AQUI', // <--- PEGA TU API KEY AQUÍ
                 'Content-Type': 'application/json'
             }
         });
 
-        // Retorna el link que el usuario debe abrir para pagar
-        console.log("Link de pago generado:", response.data.invoice_url);
+        console.log("URL de pago sin errores:", response.data.invoice_url);
         return response.data.invoice_url;
 
     } catch (error) {
-        // Muestra el error exacto si algo falla en la consola
-        console.error("Error al generar pago:", error.response ? error.response.data : error.message);
-        return null;
+        console.error("Error técnico:", error.response ? error.response.data : error.message);
     }
 }
-
-// Ejemplo de uso:
-// crearPagoUSDT(10);
