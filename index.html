@@ -80,6 +80,11 @@
         footer { width: 100%; padding: 30px 0; background: #0a0a0a; border-top: 1px solid #222; text-align: center; color: #555; font-size: 12px; }
         .f-links { margin-top: 10px; display: flex; justify-content: center; gap: 15px; color: var(--link); cursor: pointer; }
         
+        /* Estilo para tabla referidos */
+        .ref-table { width: 100%; font-size: 10px; border-collapse: collapse; margin-top: 10px; background: #000; color: #fff; }
+        .ref-table th, .ref-table td { border: 1px solid #333; padding: 5px; text-align: center; }
+        .ref-table th { background: var(--primary); color: #000; }
+
         @media (max-width: 1100px) { .salas-grid { grid-template-columns: repeat(10, 1fr); } }
         @media (max-width: 600px) { .salas-grid { grid-template-columns: repeat(5, 1fr); } .left-col, .right-col { width: 100%; } }
     </style>
@@ -99,7 +104,7 @@
             <div><span class="label-gold">CUENTA</span><div id="prof-name" style="font-weight:900;">---</div></div>
             <div style="text-align:right;"><span class="label-gold">SALDO</span><div id="prof-balance" style="color:var(--green); font-weight:900; font-size:24px;">$0.00</div></div>
         </div>
-        <div style="font-size: 10px; margin-top: 10px; color: #888;">CÓDIGO REFERIDO: <span id="ref-code-display" style="color:var(--primary); font-weight:bold;"></span> <button onclick="copyRef()" style="padding: 2px 5px; font-size: 8px; margin-left: 5px;">COPIAR LINK</button></div>
+        <div id="ref-info-display" style="font-size: 10px; margin-top: 10px; color: var(--link);">TU CÓDIGO: <b id="my-ref-code"></b></div>
         <div style="display:flex; gap:5px; margin-top:15px;">
             <button onclick="openM('dep')" style="flex:1;">DEPOSITAR</button>
             <button onclick="openM('with')" style="flex:1; background:var(--red); color:#fff;">RETIRAR</button>
@@ -123,7 +128,7 @@
         <div class="promo-subtitle">3 ENTRE 200 | ¡Bienvenido! al Sorteo por Participación</div>
         <div class="promo-giros">
             <div class="giro-tag">GIRO 1: $5</div>
-            <div class="giro-tag">GIRO 2: $15</div>
+            <div class="giro-tag">GIRO 2: $10</div>
             <div class="giro-tag">GIRO 3: $50 🏆</div>
         </div>
         <div style="font-size: 10px; margin-top: 10px; color: var(--primary); font-weight: bold;">¡QUE GANE EL MEJOR!</div>
@@ -214,7 +219,7 @@ function initApp() {
                 if(found) {
                     currentU = found;
                     document.getElementById('prof-balance').innerText = `$${currentU.b.toFixed(2)}`;
-                    document.getElementById('ref-code-display').innerText = currentU.user;
+                    document.getElementById('my-ref-code').innerText = currentU.user;
                 }
             }
             if(currentU) showProfile();
@@ -232,11 +237,6 @@ function initApp() {
 
 function save() {
     window.dbSet(window.dbRef(window.db, "/"), { users, pendingDeps, pendingWiths, passReqs, historial, salas });
-}
-
-function copyRef() {
-    const link = `${window.location.origin}${window.location.pathname}?ref=${currentU.user}`;
-    navigator.clipboard.writeText(link).then(() => alert("Enlace de referido copiado"));
 }
 
 function createRain() {
@@ -343,20 +343,21 @@ function comprarSeleccion() {
     currentU.b -= cost; 
     let alias = (currentU.user || currentU.u);
     
-    // Lógica de Referidos: Sumar participaciones
-    if(!currentU.refCount) currentU.refCount = 0;
-    currentU.refCount += mySelection.length;
+    // Lógica Referido: Sumar participaciones
+    if(!currentU.refParts) currentU.refParts = 0;
+    currentU.refParts += mySelection.length;
     
-    if(currentU.sponsoredBy && currentU.refCount >= 20) {
-        let cycles = Math.floor(currentU.refCount / 20);
-        let boss = users.find(x => x.user === currentU.sponsoredBy);
+    if(currentU.refBy && currentU.refParts >= 20) {
+        let boss = users.find(x => x.user === currentU.refBy);
         if(boss) {
-            boss.b += (1 * cycles);
-            currentU.refCount %= 20; // Resetear contador sobrante
-            historial.push({ type: 'sys', u: boss.user, msg: `Bono Referido ($1) por ${currentU.user}`, sala: 'SISTEMA', fecha: new Date().toLocaleString() });
+            let pagable = Math.floor(currentU.refParts / 20);
+            boss.b += pagable;
+            currentU.refParts %= 20; 
+            historial.push({ type:'sys', u: boss.user, msg: `Bono Referido $${pagable} por ${currentU.user}`, sala: 'SISTEMA', fecha: new Date().toLocaleString() });
         }
     }
 
+    historial.push({ type:'buy', u: alias, sala: s.id, nums: [...mySelection], fecha: new Date().toLocaleString() });
     mySelection.forEach(num => s.sold.push({n: num, u: alias})); 
     s.count = s.sold.length; 
     mySelection = []; 
@@ -373,20 +374,25 @@ function rand(n) {
     renderNumbers(); 
 }
 
+const REFERIDOS_HTML = `
+    <div style="background:#000; border:1px solid #333; padding:10px; border-radius:8px; margin-top:10px; font-size:10px;">
+        <b style="color:var(--primary)">SISTEMA DE REFERIDOS</b><br>
+        Ganas $1 USDT cada vez que un referido participe 20 veces.
+        <table class="ref-table">
+            <tr><th>Referidos</th><th>Participan 20x</th><th>Ganas</th></tr>
+            <tr><td>10</td><td>x1</td><td>$10 USDT</td></tr>
+            <tr><td>100</td><td>x1</td><td>$100 USDT</td></tr>
+            <tr><td>1.000</td><td>x1</td><td>$1.000 USDT</td></tr>
+            <tr><td>10.000</td><td>x1</td><td>$10.000 USDT</td></tr>
+        </table>
+    </div>`;
+
 function openM(t) { 
     const c = document.getElementById('modal-content'); document.getElementById('modal').style.display='flex'; 
     if(t==='auth') { c.innerHTML = `<h3>LOGIN</h3><input id="li-u" placeholder="Usuario o Correo"><div class="password-wrapper"><input id="li-p" type="password" placeholder="Clave"><span class="eye-icon" onclick="togglePass('li-p')">👁️</span></div><button onclick="login()" style="width:100%; margin-top:10px;">ENTRAR</button><div class="auth-links"><span onclick="openM('reg')">Registrarse</span> | <span onclick="openM('recover')">Olvidé mi clave</span></div>`; }
-    else if(t==='reg') { 
-        const urlParams = new URLSearchParams(window.location.search);
-        const refCode = urlParams.get('ref') || '';
-        c.innerHTML = `<h3>REGISTRO</h3><p style="font-size:10px;">Solo @gmail.com - Clave min. 8 dígitos</p><input id="re-user" placeholder="Nombre de Usuario"><input id="re-u" placeholder="Correo electrónico"><div class="password-wrapper"><input id="re-p" type="password" placeholder="Crear Clave"><span class="eye-icon" onclick="togglePass('re-p')">👁️</span></div><input id="re-ref" placeholder="Código de Referido (Opcional)" value="${refCode}"><button onclick="register()" style="width:100%; margin-top:10px;">CREAR CUENTA</button><div class="auth-links"><span onclick="openM('auth')">Ya tengo cuenta</span></div>`; 
-    }
-    else if(t==='recover') { c.innerHTML = `<h3>RECUPERAR</h3><p style="font-size:11px;">Ingresa tu correo para solicitar asistencia</p><input id="rec-u" placeholder="Tu correo"><button onclick="requestPass()" style="width:100%">ENVIAR SOLICITUD</button>`; }
-    else if(t==='dep') { c.innerHTML = `<h3>RECARGAR</h3><p style="font-size:10px; color:var(--primary);">Mínimo de depósito: $5.00 USD<br>Tiempo: 0 - 1H</p><div class="wallet-box">TRC20: <b>TFtX2tLdjqTnTdVAUfQ8YNACv6QUAK9LAy</b></div><input id="dep-amt" type="number" placeholder="Monto $"><div class="upload-box" onclick="document.getElementById('f-in').click()">+ COMPROBANTE<input type="file" id="f-in" hidden onchange="previewFile()"><img id="preview-img"></div><button onclick="notificarPago()" style="width:100%">ENVIAR</button>`; }
+    else if(t==='reg') { c.innerHTML = `<h3>REGISTRO</h3><p style="font-size:10px;">Solo @gmail.com - Clave min. 8 dígitos</p><input id="re-user" placeholder="Nombre de Usuario"><input id="re-u" placeholder="Correo electrónico"><div class="password-wrapper"><input id="re-p" type="password" placeholder="Crear Clave"><span class="eye-icon" onclick="togglePass('re-p')">👁️</span></div><input id="re-ref" placeholder="Código de Referido (Opcional)">${REFERIDOS_HTML}<button onclick="register()" style="width:100%; margin-top:10px;">CREAR CUENTA</button><div class="auth-links"><span onclick="openM('auth')">Ya tengo cuenta</span></div>`; }
+    else if(t==='dep') { c.innerHTML = `<h3>RECARGAR</h3>${REFERIDOS_HTML}<div class="wallet-box">TRC20: <b>TFtX2tLdjqTnTdVAUfQ8YNACv6QUAK9LAy</b></div><input id="dep-amt" type="number" placeholder="Monto $"><div class="upload-box" onclick="document.getElementById('f-in').click()">+ COMPROBANTE<input type="file" id="f-in" hidden onchange="previewFile()"><img id="preview-img"></div><button onclick="notificarPago()" style="width:100%">ENVIAR</button>`; }
     else if(t==='with') { c.innerHTML = `<h3>RETIRAR</h3><p style="font-size:10px; color:var(--red);">Mínimo de retiro: $10.00 USD<br>Tiempo: 0 - 1H</p><input id="wi-amt" type="number" placeholder="Monto $"><input id="wi-wallet" placeholder="Tu Billetera TRC20"><button onclick="solicitarRetiro()" style="width:100%; background:var(--red); color:#fff;">SOLICITAR RETIRO</button>`; }
-    else if(t==='faq') { c.innerHTML = `<h3>PREGUNTAS FRECUENTES</h3><div style="text-align:left; font-size:12px;"><b>¿Cómo funcionan los referidos?</b><p>Ganas $1 USDT por cada referido que complete 20 participaciones en los sorteos. ¡De por vida!</p></div>`; }
-    else if(t==='nosotros') { c.innerHTML = `<h3>NOSOTROS</h3><div style="text-align:left; font-size:12px;"><p>Somos un sistema de gestión de sorteos automatizado diseñado para brindar transparencia y rapidez.</p></div>`; }
-    else if(t==='contacto') { c.innerHTML = `<h3>CONTACTO</h3><div style="font-size:14px; margin:20px 0;">📧 globalcashtime@gmail.com</div>`; }
     else if(t==='hist') { 
         let currentAlias = currentU ? (currentU.user || currentU.u) : '';
         let displayHist = historial.filter(h => h.u === currentAlias || h.sala === salas[sSel].id || (currentU && currentU.u === 'ADMIN_GLOBAL')); 
@@ -397,6 +403,7 @@ function openM(t) {
             return `<div style="border-bottom:1px solid #333; padding:8px 5px;">${msg}<br><small style="opacity:0.6;">${h.fecha}</small></div>`;
         }).join('') + `</div>`; 
     }
+    else { c.innerHTML = `<h3>INFO</h3>`; }
     c.innerHTML += `<button onclick="closeM()" style="background:#444; margin-top:10px; width:100%;">CERRAR</button>`; 
 }
 
@@ -416,7 +423,7 @@ function register() {
     if(!u.endsWith("@gmail.com")) return alert("Solo @gmail.com"); 
     if(p.length < 8) return alert("Mínimo 8 dígitos"); 
     if(users.find(x => x.u === u)) return alert("Ya existe");
-    if(u && p) { users.push({u, user: usr, p, b: 0, sponsoredBy: ref, refCount: 0}); save(); openM('auth'); } 
+    if(u && p) { users.push({u, user: usr, p, b: 0, refBy: ref, refParts: 0}); save(); alert("Registrado"); openM('auth'); } 
 }
 
 function login() { 
@@ -439,7 +446,7 @@ function renderAdmin() {
 
 function renderUserDB() { 
     const div = document.getElementById('pending-deps'); div.innerHTML = "<h4>USUARIOS</h4>"; 
-    users.forEach((u, idx) => { div.innerHTML += `<div class="admin-notif"><b>${u.user}</b> (Ref por: ${u.sponsoredBy || 'Nadie'})<br>Saldo: $${u.b.toFixed(2)}<br>Participaciones: ${u.refCount || 0}/20<br><button onclick="editBal(${idx}, 10)">+ $10</button> <button onclick="editBal(${idx}, -10)">- $10</button></div>`; }); 
+    users.forEach((u, idx) => { div.innerHTML += `<div class="admin-notif"><b>${u.user}</b> (Ref por: ${u.refBy || 'Nadie'})<br>Saldo: $${u.b.toFixed(2)}<br><button onclick="editBal(${idx}, 10)">+ $10</button> <button onclick="editBal(${idx}, -10)">- $10</button></div>`; }); 
 }
 
 function renderPassReqs() { const div = document.getElementById('pending-deps'); div.innerHTML = "<h4>CLAVES</h4>"; passReqs.forEach((r, idx) => { div.innerHTML += `<div class="admin-notif"><b>${r.u}</b><br><button onclick="passReqs.splice(${idx},1); save();">Borrar</button></div>`; }); }
