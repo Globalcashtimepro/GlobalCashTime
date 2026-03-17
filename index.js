@@ -1,29 +1,40 @@
-const express = require('express');
-const app = express();
-app.use(express.json());
+const axios = require('axios');
 
-// CONFIGURACIÓN AUTOMÁTICA
-const API_KEY = 'DYMQ3XP-6JK4BP0-KC079W2-ZPJ7ZVA';
-const IPN_SECRET = 'XBaHB0g+I1xA6QTAGkfqb1dHpQm7fxa0';
+// CONFIGURACIÓN DE TU PAGO
+async function crearPagoUSDT(montoUsuario) {
+    // Si el usuario pone menos de 10, el sistema lo sube a 10 para evitar errores
+    const montoFinal = montoUsuario < 10 ? 10 : montoUsuario;
 
-app.post('/webhook-pago', (req, res) => {
-    const { payment_status, pay_amount, order_id } = req.body;
+    const data = {
+        "price_amount": montoFinal,          // Monto en USD
+        "price_currency": "usd",
+        "pay_currency": "usdttrc20",         // Red TRC20 (Tron)
+        "fixed_rate": true,                  // BLOQUEA EL MONTO: No cambia nunca
+        "is_fixed_rate": true,               // Refuerza la exactitud
+        "is_fee_paid_by_user": true,         // El usuario paga la comisión, tú recibes el monto íntegro
+        "ipn_callback_url": "https://global-cash-time.vercel.app/webhook-p", // Tu aviso automático
+        "order_id": "PAGO_" + Date.now(),
+        "order_description": "Recarga de saldo Global Cash Time"
+    };
 
-    if (payment_status === 'finished') {
-        // ACTIVACIÓN DE LA RULETA (Tiempos exactos)
-        setTimeout(() => { 
-            console.log("Giro 1: 15s - Parada 1: 5s"); 
-            setTimeout(() => { 
-                console.log("Giro 2: 15s - Parada 2: 5s"); 
-                setTimeout(() => { 
-                    console.log("Giro 3 Final (N°3): 15s - Parada: 5s");
-                    console.log("RESET AUTOMÁTICO");
-                }, 20000); 
-            }, 20000); 
-        }, 0);
+    try {
+        const response = await axios.post('https://api.nowpayments.io/v1/payment', data, {
+            headers: {
+                'x-api-key': 'tu_api_key_de_nowpayments', // <--- PEGA TU API KEY AQUÍ
+                'Content-Type': 'application/json'
+            }
+        });
+
+        // Retorna el link que el usuario debe abrir para pagar
+        console.log("Link de pago generado:", response.data.invoice_url);
+        return response.data.invoice_url;
+
+    } catch (error) {
+        // Muestra el error exacto si algo falla en la consola
+        console.error("Error al generar pago:", error.response ? error.response.data : error.message);
+        return null;
     }
-    res.sendStatus(200);
-});
+}
 
-app.listen(3000);
-
+// Ejemplo de uso:
+// crearPagoUSDT(10);
