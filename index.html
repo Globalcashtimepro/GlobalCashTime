@@ -50,11 +50,9 @@
         .promo-giros { display: flex; justify-content: center; gap: 10px; font-size: 12px; font-weight: bold; }
         .giro-tag { background: #222; padding: 5px 10px; border-radius: 5px; border: 1px solid var(--primary-dark); }
 
-        .salas-grid { display: grid; grid-template-columns: repeat(25, 1fr); gap: 4px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 10px; }
-        .sala-card { background: #0a0a0a; border: 1px solid #333; border-radius: 6px; padding: 4px; text-align: center; cursor: pointer; transition: 0.3s; min-width: 35px; }
-        .sala-card b { font-size: 8px; display: block; }
-        .sala-card div { font-size: 7px; opacity: 0.8; }
-        .sala-card.active { border-color: var(--primary); background: #2a2200; box-shadow: 0 0 10px rgba(255, 234, 0, 0.4); }
+        .progress-bar-container { width: 100%; background: #222; border-radius: 10px; border: 1px solid #444; height: 20px; margin: 10px 0; overflow: hidden; position: relative; }
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #b8860b, var(--primary)); width: 0%; transition: width 0.3s ease; }
+        .progress-bar-text { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; color: #fff; text-shadow: 1px 1px 2px #000; }
 
         .game-layout { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; align-items: flex-start; }
         .left-col { width: 320px; flex-shrink: 0; }
@@ -85,8 +83,7 @@
         .btn-scroll-container::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 10px; }
         .btn-scroll-container button { flex: 0 0 auto; min-width: 100px; }
 
-        @media (max-width: 1100px) { .salas-grid { grid-template-columns: repeat(10, 1fr); } }
-        @media (max-width: 600px) { .salas-grid { grid-template-columns: repeat(5, 1fr); } .left-col, .right-col { width: 100%; } }
+        @media (max-width: 600px) { .left-col, .right-col { width: 100%; } }
     </style>
 </head>
 <body>
@@ -121,7 +118,7 @@
                 <button onclick="renderAdmin()" style="font-size:9px;">NOTIFICACIONES</button>
                 <button onclick="renderUserDB()" style="font-size:9px;">BASE DE DATOS</button>
                 <button onclick="renderPassReqs()" style="font-size:9px;">CLAVES</button>
-                <button onclick="resetSalasManual()" style="font-size:9px; background:red; color:white;">RESET TODAS SALAS</button>
+                <button onclick="resetSalasManual()" style="font-size:9px; background:red; color:white;">RESET JUEGO</button>
             </div>
             <div id="pending-deps" style="margin-top:10px; max-height: 400px; overflow-y: auto;"></div>
         </div>
@@ -138,13 +135,16 @@
         <div style="font-size: 10px; margin-top: 10px; color: var(--primary); font-weight: bold;">¡QUE GANE EL MEJOR!</div>
     </div>
 
-    <div class="salas-grid" id="grid-salas"></div>
-
     <div class="section-box game-layout">
         <div class="left-col">
-            <h3 id="sala-txt" style="color:var(--primary); margin:0;">SALA #1</h3>
+            <h3 id="sala-txt" style="color:var(--primary); margin:0;">SORTEO PRINCIPAL</h3>
             <div id="canvas-container"><div id="pointer"></div><canvas id="wheel" width="600" height="600"></canvas></div>
-            <p id="prog-txt" style="font-weight:bold; margin:10px 0 5px;">0 / 200 Vendidos</p>
+            
+            <div class="progress-bar-container">
+                <div class="progress-bar-fill" id="progress-fill"></div>
+                <div class="progress-bar-text" id="prog-txt">0 / 200 Vendidos</div>
+            </div>
+
             <div id="live-counter" style="color:var(--green); font-size: 18px; font-weight: 900; height: 25px;"></div>
             <p id="status-txt" style="color:var(--primary); font-weight:bold; min-height:1.2em; margin-top: 5px;"></p>
             
@@ -182,11 +182,11 @@
 <div id="modal" class="modal"><div id="modal-content" class="section-box" style="width:90%; max-width:380px;"></div></div>
 
 <script>
-let users = [], currentU = null, ang = 0, sSel = 0, mySelection = [], tempImg = "";
+let users = [], currentU = null, ang = 0, mySelection = [], tempImg = "";
 let pendingDeps = [], pendingWiths = [], passReqs = [], historial = []; 
-let salas = Array.from({length: 50}, (_, i) => ({ 
-    id: i+1, count: 0, sold: [], isSpinning: false, isWaiting: false, waitStep: 0, currentGiro: 0, endTime: 0, lastWinner: null 
-}));
+let gameData = { 
+    count: 0, sold: [], isSpinning: false, isWaiting: false, waitStep: 0, currentGiro: 0, endTime: 0, lastWinner: null 
+};
 
 const wheelNumbers = Array.from({length: 200}, (_, i) => i + 1).sort(() => Math.random() - 0.5); 
 const PREMIOS = { 1: 5, 2: 15, 3: 50 };
@@ -210,20 +210,12 @@ function initApp() {
         passReqs = data.passReqs || [];
         historial = data.historial || [];
         
-        let dbSalas = data.salas || [];
-        if(dbSalas.length > 0) salas = dbSalas;
-        if(salas.length < 50) {
-            for(let i=salas.length; i<50; i++) salas.push({id: i+1, count: 0, sold: [], isSpinning: false, isWaiting: false, waitStep: 0, currentGiro: 0, endTime: 0, lastWinner: null});
-        }
+        if(data.gameData) gameData = data.gameData;
 
-        let resetRequired = false;
-        salas.forEach(s => {
-            if(s.currentGiro >= 3 && !s.isSpinning && !s.isWaiting && s.count > 0) {
-                s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null;
-                resetRequired = true;
-            }
-        });
-        if(resetRequired) save();
+        if(gameData.currentGiro >= 3 && !gameData.isSpinning && !gameData.isWaiting && gameData.count > 0) {
+            gameData.currentGiro = 0; gameData.count = 0; gameData.sold = []; gameData.lastWinner = null;
+            save();
+        }
 
         const saved = localStorage.getItem('GCT_SESSION');
         if(saved) {
@@ -241,10 +233,7 @@ function initApp() {
             if(currentU) showProfile();
         }
         
-        sSel = parseInt(localStorage.getItem('GCT_S_SEL')) || 0;
-        renderGrid();
         renderNumbers();
-        document.getElementById('sala-txt').innerText = `SALA #${salas[sSel]?.id || (sSel+1)}`;
         updateUI();
 
         const adminView = document.getElementById('pending-deps');
@@ -260,7 +249,7 @@ function initApp() {
 }
 
 function save() {
-    window.dbSet(window.dbRef(window.db, "/"), { users, pendingDeps, pendingWiths, passReqs, historial, salas });
+    window.dbSet(window.dbRef(window.db, "/"), { users, pendingDeps, pendingWiths, passReqs, historial, gameData });
 }
 
 function createRain() {
@@ -284,85 +273,77 @@ function getWinningNumber() {
 function logic() {
     const now = Date.now();
     let change = false;
-    if(!salas.length) return;
+    let s = gameData;
 
-    salas.forEach((s, i) => {
-        if(s.isSpinning) {
-            let timeLeft = s.endTime - now;
-            let duration = 60000; 
-            let progress = Math.min(1, (duration - timeLeft) / duration);
-            let speed = 0.5 * Math.pow(1 - progress, 2.5); 
+    if(s.isSpinning) {
+        let timeLeft = s.endTime - now;
+        let duration = 60000; 
+        let progress = Math.min(1, (duration - timeLeft) / duration);
+        let speed = 0.5 * Math.pow(1 - progress, 2.5); 
 
-            if(timeLeft <= 0 || speed <= 0.0001) {
-                const finalWinner = getWinningNumber();
-                s.isSpinning = false; 
-                s.isWaiting = true; 
-                s.waitStep = 1; 
-                s.endTime = now + 5000; 
-                s.lastWinner = finalWinner;
-                
-                let winnerData = (s.sold || []).find(x => x.n === s.lastWinner);
-                let premioMonto = PREMIOS[s.currentGiro];
-                if(winnerData) {
-                    let winUser = users.find(u => u.user === winnerData.u || u.u === winnerData.u);
-                    if(winUser) { winUser.b += premioMonto; }
-                }
-                historial.push({ type:'win', u: winnerData ? winnerData.u : 'Nadie', sala: s.id, ganador: s.lastWinner, premio: premioMonto, fecha: new Date().toLocaleString() });
-                
-                if(i === sSel) {
+        if(timeLeft <= 0 || speed <= 0.0001) {
+            const finalWinner = getWinningNumber();
+            s.isSpinning = false; 
+            s.isWaiting = true; 
+            s.waitStep = 1; 
+            s.endTime = now + 5000; 
+            s.lastWinner = finalWinner;
+            
+            let winnerData = (s.sold || []).find(x => x.n === s.lastWinner);
+            let premioMonto = PREMIOS[s.currentGiro];
+            if(winnerData) {
+                let winUser = users.find(u => u.user === winnerData.u || u.u === winnerData.u);
+                if(winUser) { winUser.b += premioMonto; }
+            }
+            historial.push({ type:'win', u: winnerData ? winnerData.u : 'Nadie', sala: 'PRINCIPAL', ganador: s.lastWinner, premio: premioMonto, fecha: new Date().toLocaleString() });
+            
+            document.getElementById('live-counter').innerText = ""; 
+            document.getElementById('pointer').style.transform = `translateY(-50%) rotate(0deg)`;
+            change = true;
+        } else {
+            ang += speed; 
+            const ptr = document.getElementById('pointer');
+            if (speed > 0.001) { 
+                let hitFrequency = Math.sin(ang * 200); 
+                ptr.style.transform = `translateY(-50%) rotate(${hitFrequency * 8 * (1-progress)}deg)`; 
+                document.getElementById('live-counter').innerText = `SORTEANDO: ${getWinningNumber()}`;
+            } else {
+                ptr.style.transform = `translateY(-50%) rotate(0deg)`;
+                document.getElementById('live-counter').innerText = "";
+            }
+            draw(); 
+        }
+    } else if(s.isWaiting) {
+        if(s.waitStep === 1) {
+            if(s.lastWinner) {
+                document.getElementById('live-counter').innerText = `GANADOR: #${s.lastWinner}`;
+            }
+            if(now >= s.endTime) {
+                s.waitStep = 0;
+                if (s.currentGiro < 3) {
+                    s.isWaiting = false; 
+                    s.currentGiro++; 
+                    s.isSpinning = true; 
+                    s.endTime = now + 60000; 
+                } else {
+                    s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; s.isWaiting = false; s.isSpinning = false;
                     document.getElementById('live-counter').innerText = ""; 
-                    document.getElementById('pointer').style.transform = `translateY(-50%) rotate(0deg)`;
+                    document.getElementById('status-txt').innerText = ""; 
+                    renderNumbers();
                 }
                 change = true;
-            } else if(i === sSel) {
-                ang += speed; 
-                const ptr = document.getElementById('pointer');
-                if (speed > 0.001) { 
-                    let hitFrequency = Math.sin(ang * 200); 
-                    ptr.style.transform = `translateY(-50%) rotate(${hitFrequency * 8 * (1-progress)}deg)`; 
-                    document.getElementById('live-counter').innerText = `SORTEANDO: ${getWinningNumber()}`;
-                } else {
-                    ptr.style.transform = `translateY(-50%) rotate(0deg)`;
-                    document.getElementById('live-counter').innerText = "";
-                }
-                draw(); 
-            }
-        } else if(s.isWaiting) {
-            if(s.waitStep === 1) {
-                if(i === sSel && s.lastWinner) {
-                    document.getElementById('live-counter').innerText = `GANADOR: #${s.lastWinner}`;
-                }
-                if(now >= s.endTime) {
-                    s.waitStep = 0;
-                    if (s.currentGiro < 3) {
-                        s.isWaiting = false; 
-                        s.currentGiro++; 
-                        s.isSpinning = true; 
-                        s.endTime = now + 60000; 
-                    } else {
-                        s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; s.isWaiting = false; s.isSpinning = false;
-                        if(i === sSel) { 
-                            document.getElementById('live-counter').innerText = ""; 
-                            document.getElementById('status-txt').innerText = ""; 
-                            renderNumbers(); renderGrid();
-                        }
-                    }
-                    change = true;
-                }
             }
         }
-    });
+    }
     if(change) save();
     updateStatus();
 }
 
 function resetSalasManual() {
-    if(confirm("¿RESET TOTAL DE TODAS LAS SALAS AHORA?")) {
-        salas.forEach(s => {
-            s.currentGiro = 0; s.count = 0; s.sold = []; s.lastWinner = null; s.isSpinning = false; s.isWaiting = false; s.waitStep = 0;
-        });
+    if(confirm("¿RESET TOTAL DEL JUEGO AHORA?")) {
+        gameData.currentGiro = 0; gameData.count = 0; gameData.sold = []; gameData.lastWinner = null; gameData.isSpinning = false; gameData.isWaiting = false; gameData.waitStep = 0;
         save();
-        alert("Salas Reiniciadas");
+        alert("Juego Reiniciado");
         location.reload();
     }
 }
@@ -376,11 +357,9 @@ function draw() {
     }
 }
 
-function setSala(i) { sSel = i; localStorage.setItem('GCT_S_SEL', i); mySelection = []; document.getElementById('sala-txt').innerText = `SALA #${salas[i]?.id || (i+1)}`; document.getElementById('live-counter').innerText = ""; document.getElementById('status-txt').innerText = ""; renderGrid(); renderNumbers(); }
-
 function comprarSeleccion() { 
     if(!currentU) return openM('auth'); 
-    let s = salas[sSel], cost = mySelection.length * 0.5; 
+    let s = gameData, cost = mySelection.length * 0.5; 
     if(s.isSpinning || s.isWaiting) return alert("Sorteo en curso");
     if(mySelection.length === 0) return alert("Selecciona números");
     if(currentU.b < cost) return alert("Saldo insuficiente");
@@ -401,7 +380,7 @@ function comprarSeleccion() {
         }
     }
 
-    historial.push({ type:'buy', u: alias, sala: s.id, nums: [...mySelection], fecha: new Date().toLocaleString() });
+    historial.push({ type:'buy', u: alias, sala: 'PRINCIPAL', nums: [...mySelection], fecha: new Date().toLocaleString() });
     if(!s.sold) s.sold = []; 
     mySelection.forEach(num => s.sold.push({n: num, u: alias})); 
     s.count = s.sold.length; 
@@ -412,7 +391,7 @@ function comprarSeleccion() {
 }
 
 function rand(n) { 
-    let s = salas[sSel]; 
+    let s = gameData; 
     mySelection = []; 
     let takenNums = new Set((s.sold || []).map(x => x.n));
     let avail = [];
@@ -447,11 +426,11 @@ function openM(t) {
     else if(t==='with') { c.innerHTML = `<h3>RETIRAR</h3><p style="font-size:10px; color:var(--red);">Mínimo de retiro: $10.00 USD<br>Tiempo: 0 - 1H</p><input id="wi-amt" type="number" placeholder="Monto $"><input id="wi-wallet" placeholder="Tu Billetera TRC20"><button onclick="solicitarRetiro()" style="width:100%; background:var(--red); color:#fff;">SOLICITAR RETIRO</button>`; }
     else if(t==='ref') {
         let myRefs = users.filter(u => u.referredBy === (currentU ? (currentU.user || currentU.u) : ''));
-        let refsHtml = myRefs.length > 0 ? myRefs.map(r => `<div style="display:flex; justify-content:space-between; border-bottom:1px solid #333; padding:5px 0;"><span>${r.user || r.u}</span><span>${r.participations || 0}/20 Salas</span></div>`).join('') : "Aún no tienes referidos";
+        let refsHtml = myRefs.length > 0 ? myRefs.map(r => `<div style="display:flex; justify-content:space-between; border-bottom:1px solid #333; padding:5px 0;"><span>${r.user || r.u}</span><span>${r.participations || 0}/20 Participaciones</span></div>`).join('') : "Aún no tienes referidos";
 
         c.innerHTML = `<h3>SISTEMA DE REFERIDOS</h3>
         <div style="text-align:left; font-size:11px; line-height:1.5;">
-            <p>Por cada referido que participe 20 veces , sea en la misma sala o salas diferentes<br>
+            <p>Por cada referido que participe 20 veces<br>
             <b style="color:var(--green)">Ganas $1 USDT de por vida cada vez que participe 20 veces</b></p>
             <p>Si refieres a 10 personas y cada 1 participa 20 veces<br>Ganas $10 USDT de por vida cada vez que participe 20 veces</p>
             <p>Si refieres a 100 personas y cada 1 participa 20 veces<br>Ganas $100 USDT de por vida cada vez que participe 20 veces</p>
@@ -464,15 +443,14 @@ function openM(t) {
             <div style="max-height:150px; overflow-y:auto; font-size:10px;">${refsHtml}</div>
         </div>`;
     }
-    else if(t==='faq') { c.innerHTML = `<h3>PREGUNTAS FRECUENTES</h3><div style="text-align:left; font-size:12px;"><b>¿Qué es GLOBAL CASH TIME?</b><p>Es una plataforma de sorteos en tiempo real donde puedes adquirir números del 1 al 200 en diferentes salas. Cada sala reparte 3 premios automáticos al completarse los cupos, procesando pagos de forma instantánea mediante tecnología blockchain (TRC20).</p></div>`; }
+    else if(t==='faq') { c.innerHTML = `<h3>PREGUNTAS FRECUENTES</h3><div style="text-align:left; font-size:12px;"><b>¿Qué es GLOBAL CASH TIME?</b><p>Es una plataforma de sorteos en tiempo real donde puedes adquirir números del 1 al 200. Cada sorteo reparte 3 premios automáticos al completarse los cupos, procesando pagos de forma instantánea mediante tecnología blockchain (TRC20).</p></div>`; }
     else if(t==='nosotros') { c.innerHTML = `<h3>NOSOTROS</h3><div style="text-align:left; font-size:12px;"><p>Somos un sistema de gestión de sorteos automatizado diseñado para brindar transparencia y rapidez. Nuestra misión es ofrecer una experiencia de juego justa donde la probabilidad y la tecnología se unen para premiar a nuestra comunidad global.</p></div>`; }
     else if(t==='contacto') { c.innerHTML = `<h3>CONTACTO</h3><div style="font-size:14px; margin:20px 0;">📧 soporte@globalcashtime.com</div>`; }
     else if(t==='hist') { 
-        // MODIFICADO: Ahora muestra el historial completo de todos los usuarios
         let displayHist = historial; 
         c.innerHTML = `<h3>HISTORIAL</h3><div style="max-height:250px; overflow-y:auto; font-size:11px; text-align:left;">` + 
         displayHist.slice().reverse().map(h => {
-            let salaTag = `<span style="color:var(--primary)">[SALA ${h.sala}]</span>`;
+            let salaTag = `<span style="color:var(--primary)">[PRINCIPAL]</span>`;
             let msg = h.type === 'buy' ? `${salaTag} <b style="color:var(--primary)">${h.u}</b> compró: [${h.nums.join(', ')}]` : 
                       h.type === 'win' ? `${salaTag} <b style="color:var(--green)">GANADOR: ${h.u}</b> (Nº${h.ganador}) - $${h.premio}` : 
                       h.type === 'sys' ? `<b style="color:${h.msg.includes('Aprobado')||h.msg.includes('+')?'var(--green)':'var(--red)'}">[SISTEMA]</b> ${h.u}: ${h.msg}` : `${salaTag} ${h.msg || ""}`;
@@ -507,12 +485,11 @@ function previewImg(input) {
 }
 
 function togglePass(id) { const el = document.getElementById(id); el.type = el.type === 'password' ? 'text' : 'password'; }
-function renderGrid() { const grid = document.getElementById('grid-salas'); grid.innerHTML = ""; salas.forEach((s, i) => { grid.innerHTML += `<div class="sala-card ${sSel===i?'active':''}" onclick="setSala(${i})"><b>SALA ${s.id}</b><div>${s.count}/200</div></div>`; }); }
 
 function renderNumbers() { 
     const cont = document.getElementById('num-selector'); 
     if(!cont) return;
-    const s = salas[sSel]; 
+    const s = gameData; 
     if(!s) return;
 
     let takenNums = new Set((s.sold || []).map(x => x.n));
@@ -525,7 +502,10 @@ function renderNumbers() {
         html += `<button class="num-btn ${cls}" ${action}>${n}</button>`; 
     }
     cont.innerHTML = html;
-    document.getElementById('prog-txt').innerText = `${s.count} / 200 Vendidos`; 
+    
+    const pct = ((s.count / 200) * 100).toFixed(0);
+    document.getElementById('prog-txt').innerText = `${s.count} / 200 Vendidos (${pct}%)`; 
+    document.getElementById('progress-fill').style.width = `${pct}%`;
 }
 
 function toggleNum(n, btn) { 
@@ -538,7 +518,7 @@ function toggleNum(n, btn) {
     }
 }
 
-function updateStatus() { let s = salas[sSel], st = document.getElementById('status-txt'); if(!s) return; if(s.isSpinning) st.innerText = `GIRO ${s.currentGiro} EN PROGRESO...`; else if(s.isWaiting) st.innerText = ""; }
+function updateStatus() { let s = gameData, st = document.getElementById('status-txt'); if(!s) return; if(s.isSpinning) st.innerText = `GIRO ${s.currentGiro} EN PROGRESO...`; else if(s.isWaiting) st.innerText = ""; }
 function showProfile() { document.getElementById('guest-btn').style.display='none'; document.getElementById('user-profile').style.display='block'; document.getElementById('prof-name').innerText = (currentU.user || currentU.u); }
 function updateUI() { if(currentU && currentU.u !== "ADMIN_GLOBAL") { let liveU = users.find(x => x.u === currentU.u); if(liveU) { currentU.b = liveU.b; currentU.participations = liveU.participations || 0; document.getElementById('prof-balance').innerText = `$${currentU.b.toFixed(2)}`; } } }
 function logout() { localStorage.removeItem('GCT_SESSION'); location.reload(); }
@@ -640,4 +620,3 @@ function rechazarWith(idx) {
 
 </body>
 </html>
-
