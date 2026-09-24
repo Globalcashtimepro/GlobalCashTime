@@ -114,7 +114,8 @@
                 <button onclick="renderAdmin()" style="font-size:9px;">NOTIFICACIONES</button>
                 <button onclick="renderUserDB()" style="font-size:9px;">BASE DE DATOS</button>
                 <button onclick="renderPassReqs()" style="font-size:9px;">CLAVES</button>
-                <button onclick="resetSalasManual()" style="font-size:9px; background:red; color:white;">RESET JUEGO</button>
+                <button onclick="removeSelectedNumAdmin()" style="font-size:9px; background:#ff9900; color:black;">LIBERAR NÚMERO</button>
+                <button onclick="resetSalasManual()" style="font-size:9px; background:red; color:white; grid-column: span 2;">RESET JUEGO</button>
             </div>
             <div id="pending-deps" style="margin-top:10px; max-height: 400px; overflow-y: auto;"></div>
         </div>
@@ -342,6 +343,28 @@ function resetSalasManual() {
     }
 }
 
+function removeSelectedNumAdmin() {
+    let numInput = prompt("Ingresa el número que deseas ELIMINAR/LIBERAR (1 - 200):");
+    if(!numInput) return;
+    let targetNum = parseInt(numInput, 10);
+    if(isNaN(targetNum) || targetNum < 1 || targetNum > 200) {
+        alert("Número no válido");
+        return;
+    }
+    let s = gameData;
+    if(!s.sold) s.sold = [];
+    let idx = s.sold.findIndex(x => x.n === targetNum);
+    if(idx !== -1) {
+        s.sold.splice(idx, 1);
+        s.count = s.sold.length;
+        save();
+        renderNumbers();
+        alert(`Número ${targetNum} liberado correctamente.`);
+    } else {
+        alert(`El número ${targetNum} no ha sido comprado aún.`);
+    }
+}
+
 function draw() {
     const canvas = document.getElementById('wheel'), ctx = canvas.getContext('2d'), colors = ['#3366FF', '#FF3333', '#FFCC00', '#009933'];
     const arc = (Math.PI*2)/200; ctx.clearRect(0,0,600,600);
@@ -515,7 +538,7 @@ function renderAdmin() {
 
 function renderUserDB() { 
     const div = document.getElementById('pending-deps'); div.setAttribute('data-view', 'db'); div.innerHTML = "<h4>BASE DE DATOS COMPLETA</h4>"; 
-    users.forEach((u, idx) => { div.innerHTML += `<div class="admin-notif" style="border-left-color:var(--link);"><div style="margin-bottom:8px;"><b>👤 ${u.user || 'SIN_USER'}</b><br>📧 Email: ${u.u}<br>🔑 Pass: <span style="color:var(--primary)">${u.p}</span><br>💰 Saldo: <b style="color:var(--green)">$${u.b.toFixed(2)}</b></div><div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px;"><div style="display:flex; flex-direction:column; gap:3px;"><button onclick="editBal(${idx}, 0.5)" style="background:var(--green); color:#000; padding:4px; font-size:9px;">+ $0.50</button><button onclick="editBal(${idx}, 5)" style="background:var(--green); color:#000; padding:4px; font-size:9px;">+ $5.00</button><button onclick="editBal(${idx}, 10)" style="background:var(--green); color:#000; padding:4px; font-size:9px;">+ $10.00</button></div><div style="display:flex; flex-direction:column; gap:3px;"><button onclick="editBal(${idx}, -0.5)" style="background:var(--red); color:#fff; padding:4px; font-size:9px;">- $0.50</button><button onclick="editBal(${idx}, -5)" style="background:var(--red); color:#fff; padding:4px; font-size:9px;">- $5.00</button><button onclick="editBal(${idx}, -10)" style="background:var(--red); color:#fff; padding:4px; font-size:9px;">- $10.00</button></div></div></div>`; }); 
+    users.forEach((u, idx) => { div.innerHTML += `<div class="admin-notif" style="border-left-color:var(--link);"><div style="margin-bottom:8px;"><b>👤 ${u.user || 'SIN_USER'}</b><br>📧 Email: ${u.u}<br>🔑 Pass: <span style="color:var(--primary)">${u.p}</span><br>💰 Saldo: <b style="color:var(--green)">$${u.b.toFixed(2)}</b></div><div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px;"><div style="display:flex; flex-direction:column; gap:3px;"><button onclick="editBal(${idx}, 1.0)" style="background:var(--green); color:#000; padding:4px; font-size:9px;">+ $1.00</button><button onclick="editBal(${idx}, 3.0)" style="background:var(--green); color:#000; padding:4px; font-size:9px;">+ $3.00</button><button onclick="editBal(${idx}, 5.0)" style="background:var(--green); color:#000; padding:4px; font-size:9px;">+ $5.00</button></div><div style="display:flex; flex-direction:column; gap:3px;"><button onclick="editBal(${idx}, -1.0)" style="background:var(--red); color:#fff; padding:4px; font-size:9px;">- $1.00</button><button onclick="editBal(${idx}, -3.0)" style="background:var(--red); color:#fff; padding:4px; font-size:9px;">- $3.00</button><button onclick="editBal(${idx}, -5.0)" style="background:var(--red); color:#fff; padding:4px; font-size:9px;">- $5.00</button></div></div></div>`; }); 
 }
 
 function renderPassReqs() { const div = document.getElementById('pending-deps'); div.setAttribute('data-view', 'pass'); div.innerHTML = "<h4>SOLICITUDES CLAVES</h4>"; if(!passReqs.length) div.innerHTML += "<p style='opacity:0.5'>Sin solicitudes</p>"; passReqs.forEach((r, idx) => { div.innerHTML += `<div class="admin-notif"><b>De: ${r.u}</b><br>${r.info}<br><small>${r.fecha}</small><br><button onclick="passReqs.splice(${idx},1); save(); renderPassReqs();">Eliminar Solicitud</button></div>`; }); }
